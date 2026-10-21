@@ -50,7 +50,7 @@ jobs:
           make recoveryimage -j$(nproc) 2>&1 | tail -100
 
       - name: Upload recovery image
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: twrp-cannon
           path: ~/android/twrp/out/target/product/cannong/recovery.img
