@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  DEVICE: cannon
-  DEVICE_PATH: device/xiaomi/cannon
+  DEVICE: cannong
+  DEVICE_PATH: device/xiaomi/cannong
   TWRP_MANIFEST: https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git
   TWRP_BRANCH: twrp-12.1
 
@@ -16,7 +16,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 12
 
       - name: Install dependencies
         run: |
@@ -40,14 +45,15 @@ jobs:
       - name: Copy device tree
         run: |
           cp -r $GITHUB_WORKSPACE/device ~/android/twrp/
-          ls -la ~/android/twrp/device/xiaomi/cannon/
+          ls -la ~/android/twrp/device/xiaomi/cannong/
 
       - name: Build TWRP
         run: |
           cd ~/android/twrp
           source build/envsetup.sh
+          export ALLOW_MISSING_DEPENDENCIES=true
           lunch twrp_cannong-eng
-          make recoveryimage -j$(nproc) 2>&1 | tail -100
+          make recoveryimage -j$(nproc) 2>&1 | tail -200
 
       - name: Upload recovery image
         uses: actions/upload-artifact@v4
