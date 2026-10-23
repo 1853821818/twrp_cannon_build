@@ -40,11 +40,13 @@ jobs:
           mkdir -p ~/android/twrp
           cd ~/android/twrp
           repo init -u $TWRP_MANIFEST -b $TWRP_BRANCH
-          # 只同步当前分支，不下载tag，减少下载量
-          repo sync -j$(nproc) --force-sync -c --no-tags 2>&1 | tail -50
-          # 确认release config存在
-          ls build/make/core/release_config/ 2>&1 || echo "RELEASE_CONFIG_MISSING"
-          echo "SYNC_DONE" 
+          # 关键修复：twrp-14 manifest缺少build/release仓库，导致release config为空、udc/ap3a无法识别
+          # 先同步build/release补充Android 14 release配置，再同步其余
+          repo sync -j$(nproc) --force-sync -c --no-tags build/release
+          repo sync -j$(nproc) --force-sync -c --no-tags build/make
+          repo sync -j$(nproc) --force-sync -c --no-tags
+          # 确认ap3a (Android 14) release config存在
+          ls build/release/release_configs/ap3a.textproto 2>&1 || echo "AP3A_MISSING" 
 
       - name: Copy device tree
         run: |
@@ -56,8 +58,8 @@ jobs:
           cd ~/android/twrp
           source build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
-          # Android 14 (UpsideDownCake) 的release是udc
-          lunch twrp_cannong-udc-eng 2>&1 || lunch twrp_cannong-userdebug
+          # Android 14的正确release是ap3a（UpsideDownCake）
+          lunch twrp_cannong-ap3a-eng 2>&1 || lunch twrp_cannong-eng
           make recoveryimage -j$(nproc) 2>&1 | tail -200
 
       - name: Upload recovery image
