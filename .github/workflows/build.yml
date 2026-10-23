@@ -40,8 +40,11 @@ jobs:
           mkdir -p ~/android/twrp
           cd ~/android/twrp
           repo init -u $TWRP_MANIFEST -b $TWRP_BRANCH
-          # -c 只同步当前分支HEAD，减少下载量避免超时；release config是源码文件，-c也能拿到
-          repo sync -j$(nproc) --force-sync -c
+          # 只同步当前分支，不下载tag，减少下载量
+          repo sync -j$(nproc) --force-sync -c --no-tags 2>&1 | tail -50
+          # 确认release config存在
+          ls build/make/core/release_config/ 2>&1 || echo "RELEASE_CONFIG_MISSING"
+          echo "SYNC_DONE" 
 
       - name: Copy device tree
         run: |
