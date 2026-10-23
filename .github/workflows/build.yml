@@ -39,7 +39,7 @@ jobs:
         run: |
           mkdir -p ~/android/twrp
           cd ~/android/twrp
-          repo init -u $TWRP_MANIFEST -b $TWRP_BRANCH --no-superproject
+          repo init -u $TWRP_MANIFEST -b $TWRP_BRANCH
           repo sync -j$(nproc) --force-sync --no-clone-bundle --no-tags --no-superproject
 
       - name: Copy device tree
