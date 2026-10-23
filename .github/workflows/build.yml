@@ -52,10 +52,8 @@ jobs:
           cd ~/android/twrp
           source build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
-          # 列出可用的combo，找到正确的格式
-          lunch twrp_cannong-eng 2>&1 || true
-          # Android 14需要带release，尝试ap3a
-          lunch twrp_cannong-ap3a-eng 2>&1 || lunch twrp_cannong-eng
+          # Android 14 (UpsideDownCake) 的release是udc
+          lunch twrp_cannong-udc-eng 2>&1 || lunch twrp_cannong-userdebug
           make recoveryimage -j$(nproc) 2>&1 | tail -200
 
       - name: Upload recovery image
