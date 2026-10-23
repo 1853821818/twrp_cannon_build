@@ -40,9 +40,8 @@ jobs:
           mkdir -p ~/android/twrp
           cd ~/android/twrp
           repo init -u $TWRP_MANIFEST -b $TWRP_BRANCH
-          # 完整同步确保release config齐全，拆分为两次避免单步超时
-          repo sync -j$(nproc) --force-sync --no-clone-bundle build/make
-          repo sync -j$(nproc) --force-sync --no-clone-bundle
+          # -c 只同步当前分支HEAD，减少下载量避免超时；release config是源码文件，-c也能拿到
+          repo sync -j$(nproc) --force-sync -c
 
       - name: Copy device tree
         run: |
