@@ -82,12 +82,11 @@ jobs:
           sudo rm -rf cts art dalvik developers development
           # 关键：Android 14 release机制需要rbcrun(starlark工具链)
           # rbcrun是Go程序，依赖external/starlark-go(go.mod replace ../../../../external/starlark-go)
-          # TWRP minimal manifest不含此仓库。用AOSP官方源(匹配rbcrun的API与版本)
-          git clone --depth 1 https://android.googlesource.com/platform/external/starlark-go external/starlark-go 2>&1 | tail -3 || \
-          git clone --depth 1 https://github.com/google/starlark-go external/starlark-go 2>&1 | tail -3 || true
-          # AOSP fork若失败用google版，需降go版本行以匹配runner旧Go
-          if [ -f external/starlark-go/go.mod ]; then
-            sed -i '/^go [0-9]/d' external/starlark-go/go.mod
+          # manifest其实包含此project(目录已存在)，只是未在pdk组，优先repo sync拉取AOSP官方版本
+          repo sync -j$(nproc) --force-sync -c --no-tags external/starlark-go 2>&1 | tail -8
+          if [ ! -f external/starlark-go/go.mod ]; then
+            echo "repo sync failed, trying git clone AOSP source..."
+            git clone --depth 1 https://android.googlesource.com/platform/external/starlark-go external/starlark-go 2>&1 | tail -3 || true
           fi
           ls external/starlark-go/go.mod 2>&1 || echo "STARLARK_GO_MISSING"
           df -h / 
