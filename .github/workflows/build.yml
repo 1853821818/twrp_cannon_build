@@ -142,8 +142,9 @@ jobs:
           cd ~/android/twrp
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
-          # 删除其Android.bp避免soong分析时依赖undefined报错
-          rm -rf build/make/tools/metadata
+          # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
+          # 删除两者避免soong分析报错
+          rm -rf build/make/tools/metadata build/make/teams
           export ALLOW_MISSING_DEPENDENCIES=true
           # TWRP recovery不编译vendor，无需VNDK。lunch触发的make也需读到KEEP_VNDK=false
           # envsetup.mk用?=设KEEP_VNDK，先export则?=不覆盖。避免board_config检查VNDK 34 prebuilt
