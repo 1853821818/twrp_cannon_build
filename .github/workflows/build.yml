@@ -109,6 +109,8 @@ jobs:
           # 用Go直接编译rbcrun(避免完整soong构建)，供release_config.mk调用
           cd build/make/tools/rbcrun && GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun 2>&1 | tail -20
           ls -la ~/android/twrp/out/rbcrun 2>&1 || echo "RBCRUN_MISSING"
+          # 调试：手动运行rbcrun抓取stderr真实错误
+          cd ~/android/twrp && ./out/rbcrun --mode=make --allow_external_entrypoint build/release/build_config/ap2a.scl 2>&1 | head -30 || echo "RBCRUN_RUN_FAIL"
           cd ~/android/twrp
           . ./build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
