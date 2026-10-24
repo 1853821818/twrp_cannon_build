@@ -155,6 +155,9 @@ jobs:
                 packages/modules/Uwb packages/modules/HealthFitness packages/modules/DnsResolver \
                 packages/modules/Nfc packages/modules/TimeZoneData packages/modules/RuntimeI18n \
                 packages/modules/RemoteKeyProvisioning packages/modules/Virtualization
+          # soong的bazel混合构建(mixed_builds)在精简树里缺frameworks/base/api等依赖会cquery失败。
+          # TWRP用纯make模式，禁用bazel analysis
+          export USE_BAZEL_ANALYSIS=false
           export ALLOW_MISSING_DEPENDENCIES=true
           # TWRP recovery不编译vendor，无需VNDK。lunch触发的make也需读到KEEP_VNDK=false
           # envsetup.mk用?=设KEEP_VNDK，先export则?=不覆盖。避免board_config检查VNDK 34 prebuilt
