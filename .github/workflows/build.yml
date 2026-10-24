@@ -80,6 +80,16 @@ jobs:
           ls build/release/release_configs/ 2>&1 || echo "RELEASE_CONFIGS_MISSING"
           # 清理synced但不用的仓库释放空间
           sudo rm -rf cts art dalvik developers development
+          # 关键：Android 14 release机制需要rbcrun(starlark工具链)
+          # rbcrun是Go程序，依赖external/starlark-go(go.mod replace ../../../../external/starlark-go)
+          # TWRP minimal manifest不含此仓库。用AOSP官方源(匹配rbcrun的API与版本)
+          git clone --depth 1 https://android.googlesource.com/platform/external/starlark-go external/starlark-go 2>&1 | tail -3 || \
+          git clone --depth 1 https://github.com/google/starlark-go external/starlark-go 2>&1 | tail -3 || true
+          # AOSP fork若失败用google版，需降go版本行以匹配runner旧Go
+          if [ -f external/starlark-go/go.mod ]; then
+            sed -i '/^go [0-9]/d' external/starlark-go/go.mod
+          fi
+          ls external/starlark-go/go.mod 2>&1 || echo "STARLARK_GO_MISSING"
           df -h / 
           echo "SYNC_DONE" 
 
@@ -91,10 +101,15 @@ jobs:
       - name: Build TWRP
         run: |
           cd ~/android/twrp
+          # Android 14 release机制要求rbcrun存在于out/rbcrun
+          # 用Go直接编译rbcrun(避免完整soong构建)，供release_config.mk调用
+          cd build/make/tools/rbcrun && GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun 2>&1 | tail -20
+          ls -la ~/android/twrp/out/rbcrun 2>&1 || echo "RBCRUN_MISSING"
+          cd ~/android/twrp
           . ./build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
           # Android 14正确编译方案：ap2a是Android 14的release名
-          # 先设置TARGET_RELEASE并重建build var缓存，绕过release_config的starlark问题
+          # 先设置TARGET_RELEASE并重建build var缓存
           export TARGET_RELEASE=ap2a
           build_build_var_cache
           lunch twrp_cannong-ap2a-eng
