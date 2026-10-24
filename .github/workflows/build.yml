@@ -123,7 +123,9 @@ jobs:
           # 模拟release_config.mk生成的entrypoint(load release_config.scl并调用release_config)
           cd ~/android/twrp && mkdir -p out/starlark_results && \
           printf 'load("//build/make/core/release_config.scl", "release_config")\ndef add(d, k, v):\n    d = dict(d)\n    d[k] = v\n    return d\nall_flags = []\nall_values = []\nvariables_to_export_to_make = release_config(all_flags, all_values)\n' > out/release_config_entrypoint.scl && \
-          ./out/rbcrun --mode=make --allow_external_entrypoint out/release_config_entrypoint.scl 2>&1 | head -15 || echo "ENTRYPOINT_RUN_FAIL"
+          ./out/rbcrun --mode=make --allow_external_entrypoint out/release_config_entrypoint.scl > out/starlark_results/out_release_config_entrypoint.scl.mk 2>out/rbcrun.err; echo "RBCRUN_EXIT=$?"; \
+          echo "=== MK size ==="; wc -c out/starlark_results/out_release_config_entrypoint.scl.mk 2>&1; \
+          echo "=== rbcrun stderr ==="; head -20 out/rbcrun.err 2>&1
           cd ~/android/twrp
           . ./build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
