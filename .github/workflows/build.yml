@@ -77,10 +77,13 @@ jobs:
       - name: Build TWRP
         run: |
           cd ~/android/twrp
-          source build/envsetup.sh
+          . ./build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
-          # 设备树声明了 'next' release (build/release/build_config/ap2a.scl)
-          lunch twrp_cannong-next-eng 2>&1 || lunch twrp_cannong-eng
+          # Android 14正确编译方案：ap2a是Android 14的release名
+          # 先设置TARGET_RELEASE并重建build var缓存，绕过release_config的starlark问题
+          export TARGET_RELEASE=ap2a
+          build_build_var_cache
+          lunch twrp_cannong-ap2a-eng
           make recoveryimage -j$(nproc) 2>&1 | tail -200
 
       - name: Upload recovery image
