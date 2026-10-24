@@ -131,6 +131,11 @@ jobs:
           # envsetup.mk用?=设KEEP_VNDK，先export则?=不覆盖。避免board_config检查VNDK 34 prebuilt
           export KEEP_VNDK=false
           export BOARD_VNDK_VERSION=
+          # board_config.mk:984-986检查PRODUCT_EXTRA_VNDK_VERSIONS(不依赖KEEP_VNDK)。
+          # TWRP是unbundled场景，设TARGET_BUILD_UNBUNDLED=true让该检查为假跳过；并显式清空相关变量
+          export TARGET_BUILD_UNBUNDLED=true
+          export OVERRIDE_PRODUCT_EXTRA_VNDK_VERSIONS=
+          export PRODUCT_EXTRA_VNDK_VERSIONS=
           # Android 14正确编译方案：ap1a是Android 14的make格式release名
           export TARGET_RELEASE=ap1a
           # 手动预生成release config .mk，避免make的KATI_shell_no_rerun跳过rbcrun导致.mk缺失
