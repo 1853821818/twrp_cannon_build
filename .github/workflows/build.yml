@@ -65,7 +65,13 @@ jobs:
           # 同步pdk组(AOSP基础)
           repo sync -j$(nproc) --force-sync -c --no-tags -g pdk,tradefed 2>&1 | tail -15
           # 显式同步TWRP核心仓库(vendor/twrp等不在pdk组，但编译必需)
-          repo sync -j$(nproc) -c --no-tags             vendor/twrp bootable/recovery system/core system/vold system/security             system/libhidl system/update_engine system/extras external/icu             external/libxml2 external/sqlite external/python3 external/lptools             external/bash external/libncurses external/nano external/ntfs-3g             hardware/interfaces prebuilts/tools-lineage 2>&1 | tail -10
+          repo sync -j$(nproc) -c --no-tags             vendor/twrp bootable/recovery system/core system/vold system/security             system/libhidl system/update_engine system/extras external/icu             external/libxml2 external/sqlite external/python3 external/lptools             external/bash external/libncurses external/nano external/ntfs-3g             hardware/interfaces prebuilts/tools-lineage toolchain/pgo-profiles 2>&1 | tail -10
+          # soong_config.mk需要toolchain/pgo-profiles/sampling/afdo_profiles.mk(Android 14新增)
+          # TWRP manifest可能不含此仓库，repo sync失败则从清华源git clone兜底
+          repo sync -j$(nproc) -c --no-tags toolchain/pgo-profiles 2>&1 | tail -3 || true
+          [ -f toolchain/pgo-profiles/sampling/afdo_profiles.mk ] || \
+            git clone -q --depth 1 https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/toolchain/pgo-profiles.git toolchain/pgo-profiles 2>&1 | tail -3
+          ls toolchain/pgo-profiles/sampling/afdo_profiles.mk 2>&1
           # 关键：TWRP用TeamWin的build/make和build/soong(android-14分支)
           # 它们覆盖AOSP版本，必须显式重新同步确保soong_ui.bash存在
           repo sync -j$(nproc) -c --no-tags build/make build/soong 2>&1 | tail -8
