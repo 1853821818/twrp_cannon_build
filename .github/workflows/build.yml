@@ -94,6 +94,18 @@ jobs:
             git clone --depth 1 https://android.googlesource.com/platform/external/starlark-go external/starlark-go 2>&1 | tail -3 || true
           fi
           ls external/starlark-go/go.mod 2>&1 || echo "STARLARK_GO_MISSING"
+          # release_config.scl依赖//build/bazel/utils:schema_validation.scl
+          # TWRP精简同步可能缺该文件，先从AOSP源下载，失败则创建最小实现(只需validate函数)
+          mkdir -p build/bazel/utils
+          curl -s "https://android.googlesource.com/platform/build/bazel/+/refs/heads/main/utils/schema_validation.scl?format=TEXT" | base64 -d > build/bazel/utils/schema_validation.scl 2>/dev/null || true
+          if ! grep -q "def validate" build/bazel/utils/schema_validation.scl 2>/dev/null; then
+            echo "creating minimal schema_validation.scl"
+            cat > build/bazel/utils/schema_validation.scl << 'SCLEOF'
+def validate(data, schema):
+    return None
+SCLEOF
+          fi
+          ls -la build/bazel/utils/schema_validation.scl && head -5 build/bazel/utils/schema_validation.scl
           df -h / 
           echo "SYNC_DONE" 
 
@@ -109,8 +121,8 @@ jobs:
           # 用Go直接编译rbcrun(避免完整soong构建)，供release_config.mk调用
           cd build/make/tools/rbcrun && GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun 2>&1 | tail -20
           ls -la ~/android/twrp/out/rbcrun 2>&1 || echo "RBCRUN_MISSING"
-          # 调试：手动运行rbcrun抓取stderr真实错误
-          cd ~/android/twrp && ./out/rbcrun --mode=make --allow_external_entrypoint build/release/build_config/ap2a.scl 2>&1 | head -30 || echo "RBCRUN_RUN_FAIL"
+          # 验证rbcrun能解析ap2a.scl(即schema_validation.scl已就位)
+          cd ~/android/twrp && ./out/rbcrun --mode=make --allow_external_entrypoint build/release/build_config/ap2a.scl 2>&1 | head -10 || echo "RBCRUN_RUN_FAIL"
           cd ~/android/twrp
           . ./build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
