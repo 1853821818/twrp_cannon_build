@@ -100,10 +100,7 @@ jobs:
           curl -s "https://android.googlesource.com/platform/build/bazel/+/refs/heads/main/utils/schema_validation.scl?format=TEXT" | base64 -d > build/bazel/utils/schema_validation.scl 2>/dev/null || true
           if ! grep -q "def validate" build/bazel/utils/schema_validation.scl 2>/dev/null; then
             echo "creating minimal schema_validation.scl"
-            cat > build/bazel/utils/schema_validation.scl << 'SCLEOF'
-def validate(data, schema):
-    return None
-SCLEOF
+            printf 'def validate(data, schema):\n    return None\n' > build/bazel/utils/schema_validation.scl
           fi
           ls -la build/bazel/utils/schema_validation.scl && head -5 build/bazel/utils/schema_validation.scl
           df -h / 
