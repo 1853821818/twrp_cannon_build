@@ -66,10 +66,10 @@ jobs:
           repo sync -j$(nproc) --force-sync -c --no-tags -g pdk,tradefed 2>&1 | tail -15
           # 显式同步TWRP核心仓库(vendor/twrp等不在pdk组，但编译必需)
           repo sync -j$(nproc) -c --no-tags             vendor/twrp bootable/recovery system/core system/vold system/security             system/libhidl system/update_engine system/extras external/icu             external/libxml2 external/sqlite external/python3 external/lptools             external/bash external/libncurses external/nano external/ntfs-3g             hardware/interfaces prebuilts/tools-lineage toolchain/pgo-profiles 2>&1 | tail -10
-          # envsetup.sh:2117需要vendor/twrp/build/envsetup.sh(TeamWin的vendor_twrp仓库)
-          # repo sync拉的可能缺build/，检查没有则从GitHub TeamWin仓库clone兜底
+          # envsetup.sh:2117需要vendor/twrp/build/envsetup.sh(TeamWin的android_vendor_twrp仓库)
+          # twrp-14 manifest不含此项目，从GitHub TeamWin仓库android-14分支clone
           [ -f vendor/twrp/build/envsetup.sh ] || \
-            { rm -rf vendor/twrp && git clone -q --depth 1 https://github.com/TeamWin/vendor_twrp.git vendor/twrp 2>&1 | tail -3; }
+            { rm -rf vendor/twrp && git clone -q --depth 1 -b android-14 https://github.com/TeamWin/android_vendor_twrp.git vendor/twrp 2>&1 | tail -3; }
           ls vendor/twrp/build/envsetup.sh 2>&1
           # soong_config.mk需要toolchain/pgo-profiles/sampling/afdo_profiles.mk(Android 14新增)
           # TWRP manifest可能不含此仓库，repo sync失败则从清华源git clone兜底
