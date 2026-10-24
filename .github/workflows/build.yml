@@ -150,7 +150,9 @@ jobs:
           echo "=== 预生成 .mk ==="; cat out/starlark_results/out_release_config_entrypoint.scl.mk 2>&1 | head -40
           build_build_var_cache
           lunch twrp_cannong-ap1a-eng 2>&1 | tail -10
-          make recoveryimage -j$(nproc) 2>&1 | tail -200
+          # TWRP recovery不编译vendor，无需VNDK。make命令行强制KEEP_VNDK=false+BOARD_VNDK_VERSION空
+          # 命令行优先级最高，覆盖makefile里的设置，避免board_config检查VNDK 34 prebuilt
+          make recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= 2>&1 | tail -200
 
       - name: Upload recovery image
         uses: actions/upload-artifact@v4
