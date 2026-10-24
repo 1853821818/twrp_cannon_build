@@ -35,6 +35,20 @@ jobs:
           git config --global user.email "actions@github.com"
           git config --global color.ui false
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /usr/lib/google-cloud-sdk
+          sudo rm -rf /opt/az
+          sudo rm -rf /usr/local/lib/node_modules
+          sudo apt-get clean
+          df -h /
+
       - name: Initialize TWRP manifest
         run: |
           mkdir -p ~/android/twrp
@@ -43,6 +57,9 @@ jobs:
           # 关键修复：twrp-14 manifest缺少build/release仓库，导致release config为空、ap3a无法识别
           # 先同步全部仓库
           repo sync -j$(nproc) --force-sync -c --no-tags 2>&1 | tail -20
+          # 检查磁盘占用
+          du -sh ~/android/twrp 2>/dev/null || true
+          df -h / 
           # 手动克隆build/release（manifest不含此project，repo sync找不到）
           # AOSP官方源，runner在海外访问快
           git clone --depth 1 https://android.googlesource.com/platform/build/release build/release 2>&1 | tail -5 || \
