@@ -15,7 +15,8 @@ $(call inherit-product, device/xiaomi/cannong/cannong-device.mk)
 
 # Inherit from Prebuilt Products.
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
-$(call inherit-product, $(SRC_TARGET_DIR)/product/gsi_keys.mk)
+# gsi_keys.mk是AOSP独有，TeamWin的build/make(android-14)不含。TWRP recovery不需要，用if-exists避免报错
+$(call inherit-product-if-exists, $(SRC_TARGET_DIR)/product/gsi_keys.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/base.mk)
 
 # Inherit from TWRP-common Stuff, if building TWRP.
