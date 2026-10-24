@@ -115,6 +115,10 @@ BOOT_SECURITY_PATCH := $(PLATFORM_SECURITY_PATCH)
 PLATFORM_VERSION := 99.87.36
 PLATFORM_VERSION_LAST_STABLE := $(PLATFORM_VERSION)
 
+# TWRP recovery不编译vendor/system，无需VNDK。禁用避免board_config要求VNDK 34 prebuilt
+BOARD_VNDK_VERSION :=
+KEEP_VNDK := false
+
 # Debugging Configs
 TARGET_USES_LOGD := true
 
