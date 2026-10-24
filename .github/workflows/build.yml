@@ -76,19 +76,17 @@ jobs:
           du -sh ~/android/twrp 2>/dev/null || true
           df -h / 
           # 手动克隆build/release（manifest不含此project，repo sync找不到）
-          # 关键：必须用android14-release分支，其release_config_map.mk含FLAG_DECLARATION_FILES(make格式flags声明)
-          # main分支是proto格式(textproto flags)，与ap2a.scl(make格式)不配套，会导致RELEASE_变量缺失
-          git clone --depth 1 -b android14-release https://android.googlesource.com/platform/build/release build/release 2>&1 | tail -5 || \
-          git clone --depth 1 -b android14-release https://github.com/aosp-mirror/platform_build_release build/release 2>&1 | tail -5 || \
-          git clone --depth 1 -b android14-release https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/build/release.git build/release 2>&1 | tail -5
-          # 确认release config存在(ap2a=Android 14 make格式release)
-          ls build/release/build_config/ap2a.scl 2>&1 || echo "AP2A_SLC_MISSING"
-          ls build/release/release_configs/ 2>&1 || echo "RELEASE_CONFIGS_MISSING"
-          # 检查release_config_map.mk是否有FLAG_DECLARATION_FILES(make格式flags声明)
-          echo "=== release_config_map.mk内容 ==="
+          # 必须用android14分支(android14-qpr2-release)，其release_config_map.mk设置
+          # FLAG_DECLARATION_FILES:=build_flags.scl并声明ap1a(Android 14 make格式release)
+          # main分支是proto格式(textproto flags)且用ap2a(Android 15)，与TWRP不配套
+          git clone --depth 1 -b android14-qpr2-release https://android.googlesource.com/platform/build/release build/release 2>&1 | tail -5 || \
+          git clone --depth 1 -b android14-qpr2-release https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/build/release.git build/release 2>&1 | tail -5 || \
+          git clone --depth 1 -b android14-qpr2-release https://github.com/aosp-mirror/platform_build_release build/release 2>&1 | tail -5
+          # 确认android14分支结构正确
+          echo "=== release_config_map.mk ==="
           cat build/release/release_config_map.mk 2>&1 | head -30
-          echo "=== flag_declarations目录 ==="
-          ls build/release/flag_declarations/*.scl 2>&1 | head -10 || echo "NO_SCL_FLAG_DECLS"
+          echo "=== ap1a.scl / build_flags.scl ==="
+          ls build/release/build_config/ap1a.scl build/release/build_flags.scl 2>&1
           # 清理synced但不用的仓库释放空间
           sudo rm -rf cts art dalvik developers development
           # 关键：Android 14 release机制需要rbcrun(starlark工具链)
@@ -116,6 +114,8 @@ jobs:
         run: |
           cp -r $GITHUB_WORKSPACE/device ~/android/twrp/
           ls -la ~/android/twrp/device/xiaomi/cannong/
+          # 删除设备树里的release_config_map.mk，避免与build/release的android14分支map冲突(ap1a)
+          rm -f ~/android/twrp/device/xiaomi/cannong/release/release_config_map.mk
 
       - name: Build TWRP
         run: |
@@ -135,11 +135,11 @@ jobs:
           cd ~/android/twrp
           . ./build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
-          # Android 14正确编译方案：ap2a是Android 14的release名
+          # Android 14正确编译方案：ap1a是Android 14的make格式release名
           # 先设置TARGET_RELEASE并重建build var缓存
-          export TARGET_RELEASE=ap2a
+          export TARGET_RELEASE=ap1a
           build_build_var_cache
-          lunch twrp_cannong-ap2a-eng
+          lunch twrp_cannong-ap1a-eng
           make recoveryimage -j$(nproc) 2>&1 | tail -200
 
       - name: Upload recovery image
