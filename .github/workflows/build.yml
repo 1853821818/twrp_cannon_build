@@ -57,7 +57,10 @@ jobs:
           # 关键修复：twrp-14 manifest缺少build/release仓库，导致release config为空
           # 同步pdk组(TWRP recovery编译必需)，-c浅克隆当前分支减磁盘占用
           # 设备树(cannong)和build/release单独处理
+          # 同步pdk组(AOSP基础)
           repo sync -j$(nproc) --force-sync -c --no-tags -g pdk,tradefed 2>&1 | tail -15
+          # 显式同步TWRP核心仓库(vendor/twrp等不在pdk组，但编译必需)
+          repo sync -j$(nproc) -c --no-tags             vendor/twrp bootable/recovery system/core system/vold system/security             system/libhidl system/update_engine system/extras external/icu             external/libxml2 external/sqlite external/python3 external/lptools             external/bash external/libncurses external/nano external/ntfs-3g             hardware/interfaces prebuilts/tools-lineage 2>&1 | tail -10
           # 同步TWRP recovery必需的device/generic(通用设备支持)
           repo sync -j$(nproc) -c --no-tags device/generic 2>&1 | tail -5 || true
           # 检查磁盘占用
