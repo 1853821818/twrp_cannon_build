@@ -132,9 +132,17 @@ jobs:
           export TARGET_RELEASE=ap1a
           build_build_var_cache
           lunch twrp_cannong-ap1a-eng 2>&1 | tail -10
-          # 检查release config生成的.mk是否包含RELEASE_变量
-          echo "=== release_config .mk ==="
-          cat out/starlark_results/out_release_config_entrypoint.scl.mk 2>&1 | head -40
+          # 手动运行rbcrun完整命令，抓取真实报错
+          echo "=== entrypoint.scl是否存在 ==="
+          ls -la out/release_config_entrypoint.scl 2>&1 | head -3
+          echo "=== 手动运行rbcrun ==="
+          mkdir -p out/starlark_results
+          ./out/rbcrun --mode=make --allow_external_entrypoint out/release_config_entrypoint.scl > out/starlark_results/manual.mk 2>out/rbcrun2.err
+          echo "EXIT=$?"
+          echo "=== rbcrun stderr ==="
+          head -30 out/rbcrun2.err 2>&1
+          echo "=== manual.mk内容 ==="
+          cat out/starlark_results/manual.mk 2>&1 | head -40
           make recoveryimage -j$(nproc) 2>&1 | tail -200
 
       - name: Upload recovery image
