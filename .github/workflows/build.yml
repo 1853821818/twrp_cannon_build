@@ -76,13 +76,19 @@ jobs:
           du -sh ~/android/twrp 2>/dev/null || true
           df -h / 
           # 手动克隆build/release（manifest不含此project，repo sync找不到）
-          # AOSP官方源，runner在海外访问快
-          git clone --depth 1 https://android.googlesource.com/platform/build/release build/release 2>&1 | tail -5 || \
-          git clone --depth 1 https://github.com/aosp-mirror/platform_build_release build/release 2>&1 | tail -5 || \
-          git clone --depth 1 https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/build/release.git build/release 2>&1 | tail -5
+          # 关键：必须用android14-release分支，其release_config_map.mk含FLAG_DECLARATION_FILES(make格式flags声明)
+          # main分支是proto格式(textproto flags)，与ap2a.scl(make格式)不配套，会导致RELEASE_变量缺失
+          git clone --depth 1 -b android14-release https://android.googlesource.com/platform/build/release build/release 2>&1 | tail -5 || \
+          git clone --depth 1 -b android14-release https://github.com/aosp-mirror/platform_build_release build/release 2>&1 | tail -5 || \
+          git clone --depth 1 -b android14-release https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/build/release.git build/release 2>&1 | tail -5
           # 确认release config存在(ap2a=Android 14 make格式release)
           ls build/release/build_config/ap2a.scl 2>&1 || echo "AP2A_SLC_MISSING"
           ls build/release/release_configs/ 2>&1 || echo "RELEASE_CONFIGS_MISSING"
+          # 检查release_config_map.mk是否有FLAG_DECLARATION_FILES(make格式flags声明)
+          echo "=== release_config_map.mk内容 ==="
+          cat build/release/release_config_map.mk 2>&1 | head -30
+          echo "=== flag_declarations目录 ==="
+          ls build/release/flag_declarations/*.scl 2>&1 | head -10 || echo "NO_SCL_FLAG_DECLS"
           # 清理synced但不用的仓库释放空间
           sudo rm -rf cts art dalvik developers development
           # 关键：Android 14 release机制需要rbcrun(starlark工具链)
