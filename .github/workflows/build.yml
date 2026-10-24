@@ -155,8 +155,10 @@ jobs:
                 packages/modules/Uwb packages/modules/HealthFitness packages/modules/DnsResolver \
                 packages/modules/Nfc packages/modules/TimeZoneData packages/modules/RuntimeI18n \
                 packages/modules/RemoteKeyProvisioning packages/modules/Virtualization
-          # soong的bazel混合构建(mixed_builds)在精简树里缺frameworks/base/api等依赖会cquery失败。
-          # TWRP用纯make模式，禁用bazel analysis；TARGET_BUILD_UNBUNDLED=true会触发bazel，改false
+          # soong_ui的defaultBazelProdMode默认返回true导致--bazel-mode开启。
+          # 只有BUILD_BROKEN_DISABLE_BAZEL=true能强制禁用(config.go:IsBazelMixedBuildForceDisabled)，
+          # USE_BAZEL_ANALYSIS/TARGET_BUILD_UNBUNDLED/make命令行都不生效。TWRP用纯make，禁用bazel
+          export BUILD_BROKEN_DISABLE_BAZEL=true
           export USE_BAZEL_ANALYSIS=false
           export ALLOW_MISSING_DEPENDENCIES=true
           # TWRP recovery不编译vendor，无需VNDK。lunch触发的make也需读到KEEP_VNDK=false
@@ -195,9 +197,9 @@ jobs:
           # 命令行优先级最高，覆盖makefile里的设置，避免board_config检查VNDK 34 prebuilt
           # pipefail防止make失败被tail吞掉退出码导致误报success；再显式校验recovery.img生成
           set -o pipefail
-          # make命令行传USE_BAZEL_ANALYSIS=false+SOONG_BAZEL=false覆盖makefile默认值，禁用bazel混合构建
+          # 命令行也传BUILD_BROKEN_DISABLE_BAZEL=true禁用bazel混合构建(双重保险)
           make recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
-              USE_BAZEL_ANALYSIS=false SOONG_BAZEL=false TARGET_BUILD_WITHOUT_BAZEL=true 2>&1 | tail -200
+              BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -200
           echo "=== recovery.img 输出路径检查 ==="
           find out/ -name "recovery.img" -exec ls -lh {} \; 2>&1 | head
 
