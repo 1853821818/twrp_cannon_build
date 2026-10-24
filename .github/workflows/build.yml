@@ -145,7 +145,7 @@ jobs:
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
           # build/release/aconfig和build/make/target/product/gsi的Android.bp用aconfig_value_set/install_symlink
           # 等AOSP新类型(TeamWin soong不识别)，recovery都不需要，一并删除避免报错
-          rm -rf build/make/tools/metadata build/make/teams build/release/aconfig build/make/target/product/gsi
+          rm -rf build/make/tools/metadata build/make/teams build/release/aconfig build/make/target/product/gsi build/make/tools/aconfig
           export ALLOW_MISSING_DEPENDENCIES=true
           # TWRP recovery不编译vendor，无需VNDK。lunch触发的make也需读到KEEP_VNDK=false
           # envsetup.mk用?=设KEEP_VNDK，先export则?=不覆盖。避免board_config检查VNDK 34 prebuilt
