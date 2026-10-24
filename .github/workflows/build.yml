@@ -104,11 +104,15 @@ jobs:
           # rbcrun是Go程序，依赖external/starlark-go(go.mod replace ../../../../external/starlark-go)
           # manifest其实包含此project(目录已存在)，只是未在pdk组，优先repo sync拉取AOSP官方版本
           repo sync -j$(nproc) --force-sync -c --no-tags external/starlark-go 2>&1 | tail -8
-          if [ ! -f external/starlark-go/go.mod ]; then
-            echo "repo sync failed, trying git clone AOSP source..."
-            git clone --depth 1 https://android.googlesource.com/platform/external/starlark-go external/starlark-go 2>&1 | tail -3 || true
+          # 强制使用AOSP官方starlark-go(含go-starlark-starlarkjson模块，匹配rbcrun Android.bp)
+          # repo sync拉的manifest版本可能缺starlarkjson，导致rbcrun-module依赖undefined
+          if [ ! -f external/starlark-go/starlarkjson/json.go ]; then
+            echo "starlarkjson missing, forcing AOSP official clone..."
+            rm -rf external/starlark-go
+            git clone --depth 1 https://android.googlesource.com/platform/external/starlark-go external/starlark-go 2>&1 | tail -3 || \
+            git clone --depth 1 https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/external/starlark-go.git external/starlark-go 2>&1 | tail -3
           fi
-          ls external/starlark-go/go.mod 2>&1 || echo "STARLARK_GO_MISSING"
+          ls external/starlark-go/go.mod external/starlark-go/starlarkjson/json.go 2>&1 || echo "STARLARK_GO_MISSING"
           # release_config.scl依赖//build/bazel/utils:schema_validation.scl
           # TWRP精简同步可能缺该文件，先从AOSP源下载，失败则创建最小实现(只需validate函数)
           mkdir -p build/bazel/utils
