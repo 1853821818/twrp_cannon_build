@@ -195,7 +195,9 @@ jobs:
           # 命令行优先级最高，覆盖makefile里的设置，避免board_config检查VNDK 34 prebuilt
           # pipefail防止make失败被tail吞掉退出码导致误报success；再显式校验recovery.img生成
           set -o pipefail
-          make recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= 2>&1 | tail -200
+          # make命令行传USE_BAZEL_ANALYSIS=false+SOONG_BAZEL=false覆盖makefile默认值，禁用bazel混合构建
+          make recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
+              USE_BAZEL_ANALYSIS=false SOONG_BAZEL=false TARGET_BUILD_WITHOUT_BAZEL=true 2>&1 | tail -200
           echo "=== recovery.img 输出路径检查 ==="
           find out/ -name "recovery.img" -exec ls -lh {} \; 2>&1 | head
 
