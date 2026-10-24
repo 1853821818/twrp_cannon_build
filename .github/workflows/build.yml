@@ -120,6 +120,10 @@ jobs:
           ls -la ~/android/twrp/out/rbcrun 2>&1 || echo "RBCRUN_MISSING"
           # 验证rbcrun能解析ap2a.scl(即schema_validation.scl已就位)
           cd ~/android/twrp && ./out/rbcrun --mode=make --allow_external_entrypoint build/release/build_config/ap2a.scl 2>&1 | head -10 || echo "RBCRUN_RUN_FAIL"
+          # 模拟release_config.mk生成的entrypoint(load release_config.scl并调用release_config)
+          cd ~/android/twrp && mkdir -p out/starlark_results && \
+          printf 'load("//build/make/core/release_config.scl", "release_config")\ndef add(d, k, v):\n    d = dict(d)\n    d[k] = v\n    return d\nall_flags = []\nall_values = []\nvariables_to_export_to_make = release_config(all_flags, all_values)\n' > out/release_config_entrypoint.scl && \
+          ./out/rbcrun --mode=make --allow_external_entrypoint out/release_config_entrypoint.scl 2>&1 | head -15 || echo "ENTRYPOINT_RUN_FAIL"
           cd ~/android/twrp
           . ./build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
