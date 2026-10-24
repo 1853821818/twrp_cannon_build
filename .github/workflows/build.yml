@@ -156,16 +156,16 @@ jobs:
                 packages/modules/Nfc packages/modules/TimeZoneData packages/modules/RuntimeI18n \
                 packages/modules/RemoteKeyProvisioning packages/modules/Virtualization
           # soong的bazel混合构建(mixed_builds)在精简树里缺frameworks/base/api等依赖会cquery失败。
-          # TWRP用纯make模式，禁用bazel analysis
+          # TWRP用纯make模式，禁用bazel analysis；TARGET_BUILD_UNBUNDLED=true会触发bazel，改false
           export USE_BAZEL_ANALYSIS=false
           export ALLOW_MISSING_DEPENDENCIES=true
           # TWRP recovery不编译vendor，无需VNDK。lunch触发的make也需读到KEEP_VNDK=false
           # envsetup.mk用?=设KEEP_VNDK，先export则?=不覆盖。避免board_config检查VNDK 34 prebuilt
           export KEEP_VNDK=false
           export BOARD_VNDK_VERSION=
-          # board_config.mk:984-986检查PRODUCT_EXTRA_VNDK_VERSIONS(不依赖KEEP_VNDK)。
-          # TWRP是unbundled场景，设TARGET_BUILD_UNBUNDLED=true让该检查为假跳过；并显式清空相关变量
-          export TARGET_BUILD_UNBUNDLED=true
+          # TWRP是recovery构建，TARGET_BUILD_UNBUNDLED=true触发bazel混合构建导致cquery缺依赖。
+          # 用KEEP_VNDK=false即可跳过VNDK检查，TARGET_BUILD_UNBUNDLED改false
+          export TARGET_BUILD_UNBUNDLED=false
           export OVERRIDE_PRODUCT_EXTRA_VNDK_VERSIONS=
           export PRODUCT_EXTRA_VNDK_VERSIONS=
           # Android 14正确编译方案：ap1a是Android 14的make格式release名
