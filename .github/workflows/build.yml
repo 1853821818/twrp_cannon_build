@@ -128,21 +128,28 @@ jobs:
           . ./build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
           # Android 14正确编译方案：ap1a是Android 14的make格式release名
-          # 先设置TARGET_RELEASE并重建build var缓存
           export TARGET_RELEASE=ap1a
+          # 手动预生成release config .mk，避免make的KATI_shell_no_rerun跳过rbcrun导致.mk缺失
+          # 精确复制release_config.mk的entrypoint生成逻辑(load build_flags.scl + ap1a.scl)
+          mkdir -p out/starlark_results
+          printf '%s\n' \
+            'load("//build/make/core/release_config.scl", "release_config")' \
+            'def add(d, k, v):' \
+            '    d = dict(d)' \
+            '    d[k] = v' \
+            '    return d' \
+            'load("build/release/build_flags.scl", flags_build_release_build_flags_scl = "flags")' \
+            'all_flags = [] + [add(x, "declared_in", "build/release/build_flags.scl") for x in flags_build_release_build_flags_scl]' \
+            'load("//build/release/build_config/ap1a.scl", values_build_release_build_config_ap1a_scl = "values")' \
+            'all_values = [] + [add(x, "set_in", "build/release/build_config/ap1a.scl") for x in values_build_release_build_config_ap1a_scl]' \
+            'variables_to_export_to_make = release_config(all_flags, all_values)' \
+            > out/release_config_entrypoint.scl
+          ./out/rbcrun --mode=make --allow_external_entrypoint out/release_config_entrypoint.scl > out/starlark_results/out_release_config_entrypoint.scl.mk 2>out/rbcrun3.err
+          echo "PRE_EXIT=$?"
+          echo "=== rbcrun3 stderr ==="; head -30 out/rbcrun3.err 2>&1
+          echo "=== 预生成 .mk ==="; cat out/starlark_results/out_release_config_entrypoint.scl.mk 2>&1 | head -40
           build_build_var_cache
           lunch twrp_cannong-ap1a-eng 2>&1 | tail -10
-          # 手动运行rbcrun完整命令，抓取真实报错
-          echo "=== entrypoint.scl是否存在 ==="
-          ls -la out/release_config_entrypoint.scl 2>&1 | head -3
-          echo "=== 手动运行rbcrun ==="
-          mkdir -p out/starlark_results
-          ./out/rbcrun --mode=make --allow_external_entrypoint out/release_config_entrypoint.scl > out/starlark_results/manual.mk 2>out/rbcrun2.err
-          echo "EXIT=$?"
-          echo "=== rbcrun stderr ==="
-          head -30 out/rbcrun2.err 2>&1
-          echo "=== manual.mk内容 ==="
-          cat out/starlark_results/manual.mk 2>&1 | head -40
           make recoveryimage -j$(nproc) 2>&1 | tail -200
 
       - name: Upload recovery image
