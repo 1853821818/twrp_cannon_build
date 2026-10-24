@@ -124,14 +124,6 @@ jobs:
           # 用Go直接编译rbcrun(避免完整soong构建)，供release_config.mk调用
           cd build/make/tools/rbcrun && GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun 2>&1 | tail -20
           ls -la ~/android/twrp/out/rbcrun 2>&1 || echo "RBCRUN_MISSING"
-          # 验证rbcrun能解析ap2a.scl(即schema_validation.scl已就位)
-          cd ~/android/twrp && ./out/rbcrun --mode=make --allow_external_entrypoint build/release/build_config/ap2a.scl 2>&1 | head -10 || echo "RBCRUN_RUN_FAIL"
-          # 模拟release_config.mk生成的entrypoint(load release_config.scl并调用release_config)
-          cd ~/android/twrp && mkdir -p out/starlark_results && \
-          printf 'load("//build/make/core/release_config.scl", "release_config")\ndef add(d, k, v):\n    d = dict(d)\n    d[k] = v\n    return d\nall_flags = []\nall_values = []\nvariables_to_export_to_make = release_config(all_flags, all_values)\n' > out/release_config_entrypoint.scl && \
-          ./out/rbcrun --mode=make --allow_external_entrypoint out/release_config_entrypoint.scl > out/starlark_results/out_release_config_entrypoint.scl.mk 2>out/rbcrun.err; echo "RBCRUN_EXIT=$?"; \
-          echo "=== MK size ==="; wc -c out/starlark_results/out_release_config_entrypoint.scl.mk 2>&1; \
-          echo "=== rbcrun stderr ==="; head -20 out/rbcrun.err 2>&1
           cd ~/android/twrp
           . ./build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
@@ -139,7 +131,10 @@ jobs:
           # 先设置TARGET_RELEASE并重建build var缓存
           export TARGET_RELEASE=ap1a
           build_build_var_cache
-          lunch twrp_cannong-ap1a-eng
+          lunch twrp_cannong-ap1a-eng 2>&1 | tail -10
+          # 检查release config生成的.mk是否包含RELEASE_变量
+          echo "=== release_config .mk ==="
+          cat out/starlark_results/out_release_config_entrypoint.scl.mk 2>&1 | head -40
           make recoveryimage -j$(nproc) 2>&1 | tail -200
 
       - name: Upload recovery image
