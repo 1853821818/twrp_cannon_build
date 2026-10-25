@@ -165,6 +165,9 @@ jobs:
           rm -rf system/apex/apexd
           # packages/modules/IPsec的apex(updatable APEX需min_sdk_version)recovery不需要
           rm -rf packages/modules/IPsec
+          # 批量删除所有updatable apex定义(recovery不需要，逐个删太慢)。
+          # soong会为updatable apex校验min_sdk_version，TWRP recovery全是C++不依赖任何apex
+          find external frameworks packages -type d -name apex -exec rm -rf {} + 2>/dev/null || true
           # soong_ui的defaultBazelProdMode默认返回true导致--bazel-mode开启。
           # 只有BUILD_BROKEN_DISABLE_BAZEL=true能强制禁用(config.go:IsBazelMixedBuildForceDisabled)，
           # USE_BAZEL_ANALYSIS/TARGET_BUILD_UNBUNDLED/make命令行都不生效。TWRP用纯make，禁用bazel
