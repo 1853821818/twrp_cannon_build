@@ -209,7 +209,10 @@ jobs:
           echo "=== rbcrun3 stderr ==="; head -30 out/rbcrun3.err 2>&1
           echo "=== 预生成 .mk ==="; cat out/starlark_results/out_release_config_entrypoint.scl.mk 2>&1 | head -40
           build_build_var_cache
-          lunch twrp_cannong-ap1a-eng 2>&1 | tail -10
+          # 关键:lunch必须在当前shell直接运行(不能接管道|tail,否则在子shell执行,TARGET_PRODUCT等
+          # 环境变量设置会丢失,soong_ui默认aosp_arm导致cleanspec找make_vars-aosp_arm.mk缺失)
+          lunch twrp_cannong-ap1a-eng >/dev/null 2>&1
+          echo "TARGET_PRODUCT=$TARGET_PRODUCT TARGET_BUILD_VARIANT=$TARGET_BUILD_VARIANT"
           # TWRP recovery不编译vendor，无需VNDK。make命令行强制KEEP_VNDK=false+BOARD_VNDK_VERSION空
           # 命令行优先级最高，覆盖makefile里的设置，避免board_config检查VNDK 34 prebuilt
           # pipefail防止make失败被tail吞掉退出码导致误报success；再显式校验recovery.img生成
