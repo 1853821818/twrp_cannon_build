@@ -238,13 +238,15 @@ jobs:
               BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -40 || echo "第1步失败(预期, build.ninja已生成)"
           ls -la out/soong/build.ninja 2>&1 || echo "build.ninja 未生成"
           echo "=== 第2步: 用soong build.ninja 编译 mkbootimg ==="
-          echo "--- 探测 mkbootimg 源码 ---"
-          find . -path "*mkbootimg*" 2>/dev/null | head -8
-          # soong build.ninja用新语法symlink_outputs,系统ninja不支持,编译AOSP ninja
-          echo "--- 编译AOSP ninja ---"
-          cd external/ninja 2>/dev/null && { python3 configure.py --bootstrap 2>&1 | tail -6; ls -la ninja 2>&1; cd ../..; } || echo "external/ninja缺失"
+          echo "--- checkout mkbootimg 源码(从repo镜像,若缺失拉googlesource) ---"
+          if [ ! -d system/tools/mkbootimg ] || [ -z "$(ls system/tools/mkbootimg/*.c 2>/dev/null)" ]; then
+            git clone --depth 1 -b android14-release https://android.googlesource.com/platform/system/tools/mkbootimg system/tools/mkbootimg 2>&1 | tail -3
+          fi
+          ls system/tools/mkbootimg/*.c 2>&1 || echo "mkbootimg源码仍缺失"
+          echo "--- 编译AOSP ninja(支持symlink_outputs语法) ---"
+          (cd external/ninja 2>/dev/null && python3 configure.py --bootstrap 2>&1 | tail -4 && ls -la ninja 2>&1) || echo "external/ninja缺失或编译失败"
           NINJA=external/ninja/ninja
-          if [ ! -f "$NINJA" ]; then NINJA=$(which ninja); fi
+          [ -f "$NINJA" ] || NINJA=$(which ninja)
           echo "使用ninja: $NINJA"
           "$NINJA" -f out/soong/build.ninja out/host/linux-x86/bin/mkbootimg 2>&1 | tail -25
           ls -la out/host/linux-x86/bin/mkbootimg 2>&1 || echo "mkbootimg 编译失败"
