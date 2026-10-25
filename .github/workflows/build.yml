@@ -156,6 +156,9 @@ jobs:
                 packages/modules/Uwb packages/modules/HealthFitness packages/modules/DnsResolver \
                 packages/modules/Nfc packages/modules/TimeZoneData packages/modules/RuntimeI18n \
                 packages/modules/RemoteKeyProvisioning packages/modules/Virtualization
+          # frameworks/av/apex定义Media apex，引用已删的packages/modules/Media模块；apexd_testdata是测试数据。
+          # recovery不依赖这些，删除避免soong报错
+          rm -rf frameworks/av/apex system/apex/apexd/apexd_testdata
           # soong_ui的defaultBazelProdMode默认返回true导致--bazel-mode开启。
           # 只有BUILD_BROKEN_DISABLE_BAZEL=true能强制禁用(config.go:IsBazelMixedBuildForceDisabled)，
           # USE_BAZEL_ANALYSIS/TARGET_BUILD_UNBUNDLED/make命令行都不生效。TWRP用纯make，禁用bazel
