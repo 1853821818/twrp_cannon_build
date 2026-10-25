@@ -229,6 +229,18 @@ jobs:
           # 真构建阶段需要的占位：build版本号文件 + recovery res目录(FindEmulator用)
           touch out/soong/build_number.txt
           mkdir -p bootable/recovery/res-xhdpi
+          # Android.mk空→soong host工具(mkbootimg等)在make侧无规则。手动编译mkbootimg
+          # (recovery.img拼装必需)，用源码树gcc编译
+          echo "=== 探测 mkbootimg 源码 ==="
+          find . -path "*/mkbootimg*" -name "*.c" 2>/dev/null | head -5
+          find . -name "sha256*.c" -path "*mincrypt*" 2>/dev/null | head -5
+          mkdir -p out/host/linux-x86/bin
+          if [ -f system/tools/mkbootimg/mkbootimg.c ]; then
+            gcc -O2 -I system/core/libmincrypt/include -I external/mincrypt/include \
+              system/tools/mkbootimg/mkbootimg.c system/core/libmincrypt/*.c \
+              -o out/host/linux-x86/bin/mkbootimg 2>&1 | tail -10
+          fi
+          ls -la out/host/linux-x86/bin/mkbootimg 2>&1 || echo "MKBootimg手动编译失败或源码缺失"
           echo "=== out/soong before build ==="; ls -la out/soong/ 2>&1 | head -40
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -250
