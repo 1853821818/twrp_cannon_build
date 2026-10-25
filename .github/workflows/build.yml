@@ -214,6 +214,9 @@ jobs:
           # 命令行优先级最高，覆盖makefile里的设置，避免board_config检查VNDK 34 prebuilt
           # pipefail防止make失败被tail吞掉退出码导致误报success；再显式校验recovery.img生成
           set -o pipefail
+          # soong只生成当前产品(twrp_cannong)的make_vars，cleanspec(aosp_arm)需要make_vars-aosp_arm.mk。
+          # 首次构建时soong未为aosp_arm生成，touch占位让cleanbuild.mk能include(cleanspec只用存在性)
+          mkdir -p out/soong && touch out/soong/make_vars-aosp_arm.mk
           # 命令行也传BUILD_BROKEN_DISABLE_BAZEL=true禁用bazel混合构建(双重保险)
           make recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -200
