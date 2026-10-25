@@ -161,6 +161,8 @@ jobs:
           rm -rf frameworks/av/apex system/apex/apexd/apexd_testdata
           # system/apex/tests是apex测试数据(recovery不需要)，其testdata引用build id导致soong报错
           rm -rf system/apex/tests
+          # system/apex/apexd(apex daemon)recovery不需要，其测试模块引用已删的apexd_testdata报错
+          rm -rf system/apex/apexd
           # packages/modules/IPsec的apex(updatable APEX需min_sdk_version)recovery不需要
           rm -rf packages/modules/IPsec
           # soong_ui的defaultBazelProdMode默认返回true导致--bazel-mode开启。
