@@ -229,13 +229,18 @@ jobs:
           # 真构建阶段需要的占位：build版本号文件 + recovery res目录(FindEmulator用)
           touch out/soong/build_number.txt
           mkdir -p bootable/recovery/res-xhdpi
-          # Android.mk空→soong host工具在make侧无规则。直接用soong的build.ninja编译host工具(mkbootimg等)
-          echo "=== soong bootstrap 生成 build.ninja ==="
-          build/soong/soong_ui.bash 2>&1 | tail -15
+          # Android.mk空→soong host工具在make侧无规则。策略:
+          # 1) 先跑一次make-mode: soong bootstrap生成build.ninja(预期在mkbootimg失败)
+          # 2) 用soong build.ninja直接编译host工具mkbootimg
+          # 3) 重跑make: 复用已编译的mkbootimg生成recovery.img
+          echo "=== 第1步: 生成build.ninja(容忍失败) ==="
+          build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
+              BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -40 || echo "第1步失败(预期, build.ninja已生成)"
           ls -la out/soong/build.ninja 2>&1 || echo "build.ninja 未生成"
-          echo "=== 用soong build.ninja 编译 mkbootimg ==="
+          echo "=== 第2步: 用soong build.ninja 编译 mkbootimg ==="
           ninja -f out/soong/build.ninja out/host/linux-x86/bin/mkbootimg 2>&1 | tail -25
           ls -la out/host/linux-x86/bin/mkbootimg 2>&1 || echo "mkbootimg 编译失败"
+          echo "=== 第3步: 重跑make生成recovery.img ==="
           echo "=== out/soong before build ==="; ls -la out/soong/ 2>&1 | head -40
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -250
