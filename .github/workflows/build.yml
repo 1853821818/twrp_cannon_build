@@ -165,7 +165,7 @@ jobs:
           # TWRP的soong(android-14)未注册PATH_OVERRIDE_SOONG/KERNEL_*等TWRP自定义变量，
           # 且移植场景不设kernel编译变量，soong解析cmd时报unknown variable。
           # patch移除这些变量引用(保留soong内置genDir)。recovery不需要kernel headers_install
-          python3 scripts/patch_twrp_bp.py
+          python3 $GITHUB_WORKSPACE/scripts/patch_twrp_bp.py
           # TWRP recovery不编译vendor，无需VNDK。lunch触发的make也需读到KEEP_VNDK=false
           # envsetup.mk用?=设KEEP_VNDK，先export则?=不覆盖。避免board_config检查VNDK 34 prebuilt
           export KEEP_VNDK=false
