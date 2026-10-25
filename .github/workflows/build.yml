@@ -75,7 +75,8 @@ jobs:
           # TWRP manifest可能不含此仓库，repo sync失败则从清华源git clone兜底
           repo sync -j$(nproc) -c --no-tags toolchain/pgo-profiles 2>&1 | tail -3 || true
           [ -f toolchain/pgo-profiles/sampling/afdo_profiles.mk ] || \
-            git clone -q --depth 1 https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/toolchain/pgo-profiles.git toolchain/pgo-profiles 2>&1 | tail -3
+            (git clone -q --depth 1 https://android.googlesource.com/toolchain/pgo-profiles toolchain/pgo-profiles 2>&1 | tail -3) || \
+            (git clone -q --depth 1 https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/toolchain/pgo-profiles.git toolchain/pgo-profiles 2>&1 | tail -3)
           ls toolchain/pgo-profiles/sampling/afdo_profiles.mk 2>&1
           # 关键：TWRP用TeamWin的build/make和build/soong(android-14分支)
           # 它们覆盖AOSP版本，必须显式重新同步确保soong_ui.bash存在
