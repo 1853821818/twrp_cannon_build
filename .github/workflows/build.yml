@@ -218,10 +218,11 @@ jobs:
           # pipefail防止make失败被tail吞掉退出码导致误报success；再显式校验recovery.img生成
           set -o pipefail
           # 命令行也传BUILD_BROKEN_DISABLE_BAZEL=true禁用bazel混合构建(双重保险)
-          # make_vars-<product>.mk不由soong_build写(只有build.ninja/Android.mk/installs由soong生成)，
-          # cleanspec(cleanbuild.mk include SOONG_MAKEVARS_MK)需要它存在。touch空文件保底：
-          # soong会为当前产品(twrp_cannong)生成真实Android.mk+installs，cleanspec用空make_vars只做清理检查(不清理全新out)
-          mkdir -p out/soong && touch out/soong/make_vars-twrp_cannong.mk
+          # soong_build只输出build.ninja(soong.go:266)，Android.mk/installs/make_vars由build.ninja执行时生成，
+          # 但kati的cleanspec/build在runNinja前需要它们存在。touch空文件保底让kati过，
+          # 若recovery模块缺失会在build阶段暴露(soong库已在build.ninja里)
+          mkdir -p out/soong
+          touch out/soong/make_vars-twrp_cannong.mk out/soong/installs-twrp_cannong.mk out/soong/Android-twrp_cannong.mk
           echo "=== out/soong before build ==="; ls -la out/soong/ 2>&1 | head -40
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -250
