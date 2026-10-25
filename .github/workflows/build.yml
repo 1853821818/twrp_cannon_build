@@ -226,6 +226,9 @@ jobs:
           # 执行时生成，但kati的cleanspec/build先于runNinja需要它们。touch空文件保底让kati过，
           # recovery模块编译由runNinja执行build.ninja完成(soong库已在内)
           for f in make_vars installs Android late; do touch "out/soong/$f-twrp_cannong.mk"; done
+          # 真构建阶段需要的占位：build版本号文件 + recovery res目录(FindEmulator用)
+          touch out/soong/build_number.txt
+          mkdir -p bootable/recovery/res-xhdpi
           echo "=== out/soong before build ==="; ls -la out/soong/ 2>&1 | head -40
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -250
