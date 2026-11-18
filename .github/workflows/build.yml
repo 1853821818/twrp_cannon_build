@@ -238,6 +238,28 @@ jobs:
           # 真构建阶段需要的占位：build版本号文件 + recovery res目录(FindEmulator用)
           touch out/soong/build_number.txt
           mkdir -p bootable/recovery/res-xhdpi
+          # 以下host工具在TeamWin精简manifest下soong没有生成规则：
+          # mkbootfs 用源码+fs_config桩直接编译；minigzip 用gzip代替。
+          mkdir -p out/host/linux-x86/bin
+          if [ -f system/core/mkbootfs/mkbootfs.c ]; then
+          cat > /tmp/fs_config_stub.c <<'EOF'
+#include <stdint.h>
+#include <sys/stat.h>
+void fs_config(const char* path, int dir, const char* target_out_path, unsigned* uid,
+               unsigned* gid, unsigned* mode, uint64_t* capabilities) {
+  struct stat st;
+  *uid = 0; *gid = 0; *capabilities = 0;
+  if (!stat(path, &st)) *mode = st.st_mode;
+  else *mode = dir ? (S_IFDIR | 0755) : (S_IFREG | 0644);
+}
+EOF
+          gcc -O2 -o out/host/linux-x86/bin/mkbootfs system/core/mkbootfs/mkbootfs.c /tmp/fs_config_stub.c \
+              -Isystem/core/libcutils/include -Isystem/core/libcutils/include_outside_system -Isystem/core/include 2>&1 | tail -10 || true
+          fi
+          ls -la out/host/linux-x86/bin/mkbootfs 2>&1 || echo "MKBOOTFS_BUILD_FAILED"
+          [ -x out/host/linux-x86/bin/minigzip ] || printf '#!/bin/sh\nexec gzip "$@"\n' > out/host/linux-x86/bin/minigzip
+          chmod +x out/host/linux-x86/bin/minigzip
+          ls -la out/host/linux-x86/bin/minigzip
           # Android.mk空→soong host工具在make侧无规则。策略:
           # 1) 先跑一次make-mode: soong bootstrap生成build.ninja(预期在mkbootimg失败)
           # 2) 用soong build.ninja直接编译host工具mkbootimg
