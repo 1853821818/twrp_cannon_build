@@ -124,6 +124,15 @@ jobs:
           fi
           ls -la build/bazel/utils/schema_validation.scl && head -5 build/bazel/utils/schema_validation.scl
           df -h / 
+          # 关键：mkbootimg host工具必须在soong bootstrap之前存在，
+          # 否则out/soong/build.ninja里没有它的target，recovery.img依赖会报
+          # "missing and no known rule to make it"。
+          repo sync -j4 -c --no-tags system/tools/mkbootimg 2>&1 | tail -3 || true
+          if [ ! -f system/tools/mkbootimg/mkbootimg.py ]; then
+            rm -rf system/tools/mkbootimg
+            git clone --depth 1 -b android14-release https://android.googlesource.com/platform/system/tools/mkbootimg system/tools/mkbootimg 2>&1 | tail -3 || true
+          fi
+          ls system/tools/mkbootimg/Android.bp system/tools/mkbootimg/mkbootimg.py 2>&1
           echo "SYNC_DONE" 
 
       - name: Copy device tree
@@ -258,7 +267,7 @@ jobs:
           if [ ! -x "$NINJA" ]; then NINJA=$(command -v ninja); fi
           "$NINJA" --version
           echo "使用ninja: $NINJA"
-          "$NINJA" -f out/soong/build.ninja out/host/linux-x86/bin/mkbootimg 2>&1 | tail -25
+          "$NINJA" -f out/soong/build.ninja out/host/linux-x86/bin/mkbootimg 2>&1 | tail -25 || true
           ls -la out/host/linux-x86/bin/mkbootimg 2>&1 || echo "mkbootimg 编译失败"
           echo "=== 第3步: 重跑make生成recovery.img ==="
           echo "=== out/soong before build ==="; ls -la out/soong/ 2>&1 | head -40
