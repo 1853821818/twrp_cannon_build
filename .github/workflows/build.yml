@@ -252,8 +252,10 @@ jobs:
           (cd external/ninja 2>/dev/null && python3 configure.py --bootstrap 2>&1 | tail -4 && ls -la ninja 2>&1) || echo "external/ninja缺失或编译失败"
           python3 -m pip install --user -q --upgrade ninja 2>&1 | tail -3 || pip3 install --user -q --upgrade ninja 2>&1 | tail -3
           export PATH="$HOME/.local/bin:$PATH"
-          NINJA=external/ninja/ninja
-          if [ ! -f "$NINJA" ]; then NINJA=$(command -v ninja); fi
+          # android soong 的 symlink_outputs 是 AOSP 定制 ninja 才支持的语法，必须用 prebuilts/build-tools 里的 ninja
+          repo sync -j4 -c --no-tags prebuilts/build-tools 2>&1 | tail -3 || true
+          NINJA=prebuilts/build-tools/linux-x86/bin/ninja
+          if [ ! -x "$NINJA" ]; then NINJA=$(command -v ninja); fi
           "$NINJA" --version
           echo "使用ninja: $NINJA"
           "$NINJA" -f out/soong/build.ninja out/host/linux-x86/bin/mkbootimg 2>&1 | tail -25
