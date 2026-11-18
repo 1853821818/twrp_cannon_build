@@ -239,15 +239,22 @@ jobs:
           ls -la out/soong/build.ninja 2>&1 || echo "build.ninja 未生成"
           echo "=== 第2步: 用soong build.ninja 编译 mkbootimg ==="
           echo "--- checkout mkbootimg 源码(从repo镜像,若缺失拉googlesource) ---"
-          if [ -z "$(ls system/tools/mkbootimg/*.c 2>/dev/null)" ]; then
+          if [ ! -f system/tools/mkbootimg/mkbootimg.py ]; then
             rm -rf system/tools/mkbootimg
             git clone --depth 1 -b android14-release https://android.googlesource.com/platform/system/tools/mkbootimg system/tools/mkbootimg 2>&1 | tail -3
           fi
-          ls system/tools/mkbootimg/*.c 2>&1 || echo "mkbootimg源码仍缺失"
-          echo "--- 编译AOSP ninja(支持symlink_outputs语法) ---"
+          ls system/tools/mkbootimg/mkbootimg.py 2>&1 || echo "mkbootimg源码仍缺失"
+          # android14的mkbootimg是python脚本，soong不会产出bin/mkbootimg，这里直接造一个可执行wrapper
+          mkdir -p out/host/linux-x86/bin
+          printf '#!/bin/sh\nexec python3 %s/system/tools/mkbootimg/mkbootimg.py "$@"\n' "$PWD" > out/host/linux-x86/bin/mkbootimg
+          chmod +x out/host/linux-x86/bin/mkbootimg
+          echo "--- 安装新版ninja(支持symlink_outputs语法) ---"
           (cd external/ninja 2>/dev/null && python3 configure.py --bootstrap 2>&1 | tail -4 && ls -la ninja 2>&1) || echo "external/ninja缺失或编译失败"
+          python3 -m pip install --user -q --upgrade ninja 2>&1 | tail -3 || pip3 install --user -q --upgrade ninja 2>&1 | tail -3
+          export PATH="$HOME/.local/bin:$PATH"
           NINJA=external/ninja/ninja
-          [ -f "$NINJA" ] || NINJA=$(which ninja)
+          if [ ! -f "$NINJA" ]; then NINJA=$(command -v ninja); fi
+          "$NINJA" --version
           echo "使用ninja: $NINJA"
           "$NINJA" -f out/soong/build.ninja out/host/linux-x86/bin/mkbootimg 2>&1 | tail -25
           ls -la out/host/linux-x86/bin/mkbootimg 2>&1 || echo "mkbootimg 编译失败"
