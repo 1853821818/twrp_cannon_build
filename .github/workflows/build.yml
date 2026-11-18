@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  DEVICE: cannong
-  DEVICE_PATH: device/xiaomi/cannong
+  DEVICE: cannon
+  DEVICE_PATH: device/xiaomi/cannon
   TWRP_MANIFEST: https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git
   TWRP_BRANCH: twrp-14
 
@@ -61,7 +61,7 @@ jobs:
           repo init -u $TWRP_MANIFEST -b $TWRP_BRANCH
           # 关键修复：twrp-14 manifest缺少build/release仓库，导致release config为空
           # 同步pdk组(TWRP recovery编译必需)，-c浅克隆当前分支减磁盘占用
-          # 设备树(cannong)和build/release单独处理
+          # 设备树(cannon)和build/release单独处理
           # 同步pdk组(AOSP基础)
           repo sync -j$(nproc) --force-sync -c --no-tags -g pdk,tradefed 2>&1 | tail -15
           # 显式同步TWRP核心仓库(vendor/twrp等不在pdk组，但编译必需)
@@ -124,14 +124,23 @@ jobs:
           fi
           ls -la build/bazel/utils/schema_validation.scl && head -5 build/bazel/utils/schema_validation.scl
           df -h / 
+          # 关键：mkbootimg host工具必须在soong bootstrap之前存在，
+          # 否则out/soong/build.ninja里没有它的target，recovery.img依赖会报
+          # "missing and no known rule to make it"。
+          repo sync -j4 -c --no-tags system/tools/mkbootimg 2>&1 | tail -3 || true
+          if [ ! -f system/tools/mkbootimg/mkbootimg.py ]; then
+            rm -rf system/tools/mkbootimg
+            git clone --depth 1 -b android14-release https://android.googlesource.com/platform/system/tools/mkbootimg system/tools/mkbootimg 2>&1 | tail -3 || true
+          fi
+          ls system/tools/mkbootimg/Android.bp system/tools/mkbootimg/mkbootimg.py 2>&1
           echo "SYNC_DONE" 
 
       - name: Copy device tree
         run: |
           cp -r $GITHUB_WORKSPACE/device ~/android/twrp/
-          ls -la ~/android/twrp/device/xiaomi/cannong/
+          ls -la ~/android/twrp/device/xiaomi/cannon/
           # 删除设备树里的release_config_map.mk，避免与build/release的android14分支map冲突(ap1a)
-          rm -f ~/android/twrp/device/xiaomi/cannong/release/release_config_map.mk
+          rm -f ~/android/twrp/device/xiaomi/cannon/release/release_config_map.mk
 
       - name: Build TWRP
         run: |
@@ -211,7 +220,7 @@ jobs:
           build_build_var_cache
           # 关键:lunch必须在当前shell直接运行(不能接管道|tail,否则在子shell执行,TARGET_PRODUCT等
           # 环境变量设置会丢失,soong_ui默认aosp_arm导致cleanspec找make_vars-aosp_arm.mk缺失)
-          lunch twrp_cannong-ap1a-eng >/dev/null 2>&1
+          lunch twrp_cannon-ap1a-eng >/dev/null 2>&1
           echo "TARGET_PRODUCT=$TARGET_PRODUCT TARGET_BUILD_VARIANT=$TARGET_BUILD_VARIANT"
           # TWRP recovery不编译vendor，无需VNDK。make命令行强制KEEP_VNDK=false+BOARD_VNDK_VERSION空
           # 命令行优先级最高，覆盖makefile里的设置，避免board_config检查VNDK 34 prebuilt
@@ -225,10 +234,31 @@ jobs:
           # AOSP soong_build只生成build.ninja；make接口文件(make_vars/installs/Android/late)由build.ninja
           # 执行时生成，但kati的cleanspec/build先于runNinja需要它们。touch空文件保底让kati过，
           # recovery模块编译由runNinja执行build.ninja完成(soong库已在内)
-          for f in make_vars installs Android late; do touch "out/soong/$f-twrp_cannong.mk"; done
+          for f in make_vars installs Android late; do touch "out/soong/$f-twrp_cannon.mk"; done
           # 真构建阶段需要的占位：build版本号文件 + recovery res目录(FindEmulator用)
           touch out/soong/build_number.txt
           mkdir -p bootable/recovery/res-xhdpi
+          # 以下host工具在TeamWin精简manifest下soong没有生成规则：
+          # mkbootfs 用源码+fs_config桩直接编译；minigzip 用gzip代替。
+          mkdir -p out/host/linux-x86/bin
+          if [ -f system/core/mkbootfs/mkbootfs.c ]; then
+            printf '%s\n' \
+              '#include <stdint.h>' \
+              '#include <sys/stat.h>' \
+              'void fs_config(const char* path, int dir, const char* target_out_path, unsigned* uid,' \
+              '               unsigned* gid, unsigned* mode, uint64_t* capabilities) {' \
+              '  struct stat st;' \
+              '  *uid = 0; *gid = 0; *capabilities = 0;' \
+              '  if (!stat(path, &st)) *mode = st.st_mode;' \
+              '  else *mode = dir ? (S_IFDIR | 0755) : (S_IFREG | 0644);' \
+              '}' > /tmp/fs_config_stub.c
+            gcc -O2 -o out/host/linux-x86/bin/mkbootfs system/core/mkbootfs/mkbootfs.c /tmp/fs_config_stub.c \
+                -Isystem/core/libcutils/include -Isystem/core/libcutils/include_outside_system -Isystem/core/include 2>&1 | tail -10 || true
+          fi
+          ls -la out/host/linux-x86/bin/mkbootfs 2>&1 || echo "MKBOOTFS_BUILD_FAILED"
+          [ -x out/host/linux-x86/bin/minigzip ] || printf '#!/bin/sh\nexec gzip "$@"\n' > out/host/linux-x86/bin/minigzip
+          chmod +x out/host/linux-x86/bin/minigzip
+          ls -la out/host/linux-x86/bin/minigzip
           # Android.mk空→soong host工具在make侧无规则。策略:
           # 1) 先跑一次make-mode: soong bootstrap生成build.ninja(预期在mkbootimg失败)
           # 2) 用soong build.ninja直接编译host工具mkbootimg
@@ -239,16 +269,26 @@ jobs:
           ls -la out/soong/build.ninja 2>&1 || echo "build.ninja 未生成"
           echo "=== 第2步: 用soong build.ninja 编译 mkbootimg ==="
           echo "--- checkout mkbootimg 源码(从repo镜像,若缺失拉googlesource) ---"
-          if [ ! -d system/tools/mkbootimg ] || [ -z "$(ls system/tools/mkbootimg/*.c 2>/dev/null)" ]; then
+          if [ ! -f system/tools/mkbootimg/mkbootimg.py ]; then
+            rm -rf system/tools/mkbootimg
             git clone --depth 1 -b android14-release https://android.googlesource.com/platform/system/tools/mkbootimg system/tools/mkbootimg 2>&1 | tail -3
           fi
-          ls system/tools/mkbootimg/*.c 2>&1 || echo "mkbootimg源码仍缺失"
-          echo "--- 编译AOSP ninja(支持symlink_outputs语法) ---"
+          ls system/tools/mkbootimg/mkbootimg.py 2>&1 || echo "mkbootimg源码仍缺失"
+          # android14的mkbootimg是python脚本，soong不会产出bin/mkbootimg，这里直接造一个可执行wrapper
+          mkdir -p out/host/linux-x86/bin
+          printf '#!/bin/sh\nexec python3 %s/system/tools/mkbootimg/mkbootimg.py "$@"\n' "$PWD" > out/host/linux-x86/bin/mkbootimg
+          chmod +x out/host/linux-x86/bin/mkbootimg
+          echo "--- 安装新版ninja(支持symlink_outputs语法) ---"
           (cd external/ninja 2>/dev/null && python3 configure.py --bootstrap 2>&1 | tail -4 && ls -la ninja 2>&1) || echo "external/ninja缺失或编译失败"
-          NINJA=external/ninja/ninja
-          [ -f "$NINJA" ] || NINJA=$(which ninja)
+          python3 -m pip install --user -q --upgrade ninja 2>&1 | tail -3 || pip3 install --user -q --upgrade ninja 2>&1 | tail -3
+          export PATH="$HOME/.local/bin:$PATH"
+          # android soong 的 symlink_outputs 是 AOSP 定制 ninja 才支持的语法，必须用 prebuilts/build-tools 里的 ninja
+          repo sync -j4 -c --no-tags prebuilts/build-tools 2>&1 | tail -3 || true
+          NINJA=prebuilts/build-tools/linux-x86/bin/ninja
+          if [ ! -x "$NINJA" ]; then NINJA=$(command -v ninja); fi
+          "$NINJA" --version
           echo "使用ninja: $NINJA"
-          "$NINJA" -f out/soong/build.ninja out/host/linux-x86/bin/mkbootimg 2>&1 | tail -25
+          "$NINJA" -f out/soong/build.ninja out/host/linux-x86/bin/mkbootimg 2>&1 | tail -25 || true
           ls -la out/host/linux-x86/bin/mkbootimg 2>&1 || echo "mkbootimg 编译失败"
           echo "=== 第3步: 重跑make生成recovery.img ==="
           echo "=== out/soong before build ==="; ls -la out/soong/ 2>&1 | head -40
@@ -262,4 +302,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: twrp-cannon
-          path: ~/android/twrp/out/target/product/cannong/recovery.img
+          path: ~/android/twrp/out/target/product/cannon/recovery.img
