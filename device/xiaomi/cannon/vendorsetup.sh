@@ -1,4 +1,4 @@
-FDEVICE="cannong"
+FDEVICE="cannon"
 #set -o xtrace
 
 fox_get_target_device() {
@@ -66,7 +66,7 @@ if [ "$1" = "$FDEVICE" -o "$FOX_BUILD_DEVICE" = "$FDEVICE" ]; then
 	export OF_ALLOW_DISABLE_NAVBAR=0
 
 	# Device Codename (Redmi Note 9T)
-	export TARGET_DEVICE_ALT="cannon,cannong"
+	export TARGET_DEVICE_ALT="cannon,cannon"
 
 	# Partitions Handling
 	export FOX_RECOVERY_INSTALL_PARTITION="/dev/block/by-name/recovery"

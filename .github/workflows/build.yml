@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  DEVICE: cannong
-  DEVICE_PATH: device/xiaomi/cannong
+  DEVICE: cannon
+  DEVICE_PATH: device/xiaomi/cannon
   TWRP_MANIFEST: https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git
   TWRP_BRANCH: twrp-14
 
@@ -61,7 +61,7 @@ jobs:
           repo init -u $TWRP_MANIFEST -b $TWRP_BRANCH
           # 关键修复：twrp-14 manifest缺少build/release仓库，导致release config为空
           # 同步pdk组(TWRP recovery编译必需)，-c浅克隆当前分支减磁盘占用
-          # 设备树(cannong)和build/release单独处理
+          # 设备树(cannon)和build/release单独处理
           # 同步pdk组(AOSP基础)
           repo sync -j$(nproc) --force-sync -c --no-tags -g pdk,tradefed 2>&1 | tail -15
           # 显式同步TWRP核心仓库(vendor/twrp等不在pdk组，但编译必需)
@@ -129,9 +129,9 @@ jobs:
       - name: Copy device tree
         run: |
           cp -r $GITHUB_WORKSPACE/device ~/android/twrp/
-          ls -la ~/android/twrp/device/xiaomi/cannong/
+          ls -la ~/android/twrp/device/xiaomi/cannon/
           # 删除设备树里的release_config_map.mk，避免与build/release的android14分支map冲突(ap1a)
-          rm -f ~/android/twrp/device/xiaomi/cannong/release/release_config_map.mk
+          rm -f ~/android/twrp/device/xiaomi/cannon/release/release_config_map.mk
 
       - name: Build TWRP
         run: |
@@ -211,7 +211,7 @@ jobs:
           build_build_var_cache
           # 关键:lunch必须在当前shell直接运行(不能接管道|tail,否则在子shell执行,TARGET_PRODUCT等
           # 环境变量设置会丢失,soong_ui默认aosp_arm导致cleanspec找make_vars-aosp_arm.mk缺失)
-          lunch twrp_cannong-ap1a-eng >/dev/null 2>&1
+          lunch twrp_cannon-ap1a-eng >/dev/null 2>&1
           echo "TARGET_PRODUCT=$TARGET_PRODUCT TARGET_BUILD_VARIANT=$TARGET_BUILD_VARIANT"
           # TWRP recovery不编译vendor，无需VNDK。make命令行强制KEEP_VNDK=false+BOARD_VNDK_VERSION空
           # 命令行优先级最高，覆盖makefile里的设置，避免board_config检查VNDK 34 prebuilt
@@ -225,7 +225,7 @@ jobs:
           # AOSP soong_build只生成build.ninja；make接口文件(make_vars/installs/Android/late)由build.ninja
           # 执行时生成，但kati的cleanspec/build先于runNinja需要它们。touch空文件保底让kati过，
           # recovery模块编译由runNinja执行build.ninja完成(soong库已在内)
-          for f in make_vars installs Android late; do touch "out/soong/$f-twrp_cannong.mk"; done
+          for f in make_vars installs Android late; do touch "out/soong/$f-twrp_cannon.mk"; done
           # 真构建阶段需要的占位：build版本号文件 + recovery res目录(FindEmulator用)
           touch out/soong/build_number.txt
           mkdir -p bootable/recovery/res-xhdpi
@@ -262,4 +262,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: twrp-cannon
-          path: ~/android/twrp/out/target/product/cannong/recovery.img
+          path: ~/android/twrp/out/target/product/cannon/recovery.img

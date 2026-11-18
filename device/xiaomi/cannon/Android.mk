@@ -5,7 +5,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/twrp_cannong.mk
+LOCAL_PATH := $(call my-dir)
 
-COMMON_LUNCH_CHOICES := twrp_cannong-eng
+ifeq ($(TARGET_DEVICE),cannon)
+include $(call all-subdir-makefiles,$(LOCAL_PATH))
+endif

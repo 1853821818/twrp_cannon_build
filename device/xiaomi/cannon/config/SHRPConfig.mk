@@ -1,7 +1,7 @@
 # Include to BoardConfig.mk
 SHRP_MAINTAINER := cd-Spidey
-SHRP_DEVICE_CODE := cannong
-SHRP_PATH := device/xiaomi/cannong
+SHRP_DEVICE_CODE := cannon
+SHRP_PATH := device/xiaomi/cannon
 SHRP_REC_TYPE := Treble
 SHRP_DEVICE_TYPE := A_Only
 SHRP_NOTCH := true

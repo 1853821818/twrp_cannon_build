@@ -19,6 +19,20 @@ on boot
     start vibrator-1-3
     start health-hal-2-1
     setprop sys.usb.config adb
+    # FBE: 不等 listeners 状态，直接起 TEE / keymaster
+    setprop ro.crypto.state encrypted
+    setprop ro.crypto.type file
+    setprop crypto.ready 1
+    start teei_daemon
+    start keymaster-4-1-beanpo
+    start keymaster_attestation-1-1
+    start vendor.gatekeeper-1-0
+
+on property:hwservicemanager.ready=true
+    start teei_daemon
+    start keymaster-4-1-beanpo
+    start keymaster_attestation-1-1
+    start vendor.gatekeeper-1-0
 
 on property:ro.crypto.state=encrypted && property:ro.crypto.type=file
     start teei_daemon

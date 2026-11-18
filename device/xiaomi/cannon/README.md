@@ -1,7 +1,7 @@
 # Custom Recovery Tree for Redmi Note 9T
 
 
-| Device                  | Redmi Note 9T (cannong)                                           |
+| Device                  | Redmi Note 9T (cannon)                                           |
 | ----------------------- | ---------------------------------------------------------|
 | SoC                     | MediaTek Dimensity 800U 5G (7 nm)                        |
 | CPU                     | Octa-core (2x2.4 GHz Cortex-A76 & 6x2.0 GHz Cortex-A55)  |

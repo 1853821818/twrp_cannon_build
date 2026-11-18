@@ -2,7 +2,7 @@
 # Copyright (C) 2022 SebaUbuntu's TWRP device tree generator
 # SPDX-License-Identifier: Apache-2.0
 
-DEVICE_PATH := device/xiaomi/cannong
+DEVICE_PATH := device/xiaomi/cannon
 
 # For building with minimal manifest
 ALLOW_MISSING_DEPENDENCIES := true
@@ -56,8 +56,8 @@ BOARD_KERNEL_TAGS_OFFSET := 0x0bc08000
 BOARD_KERNEL_IMAGE_NAME := Image.gz
 
 # Kernel Source
-TARGET_KERNEL_CONFIG := cannong_defconfig
-TARGET_KERNEL_SOURCE := kernel/xiaomi/cannong
+TARGET_KERNEL_CONFIG := cannon_defconfig
+TARGET_KERNEL_SOURCE := kernel/xiaomi/cannon
 TARGET_KERNEL_CLANG_COMPILE := true
 LC_ALL="C"
 
