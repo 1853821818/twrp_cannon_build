@@ -41,6 +41,9 @@ endif
 
 PRODUCT_GMS_CLIENTID_BASE := android-$(PRODUCT_MANUFCATURER)
 
+# 本机 vendor keymaster 是 4.1；TW_FORCE_KEYMASTER_VER 依赖该 prop
+PRODUCT_PROPERTY_OVERRIDES += keymaster_ver=4.1
+
 PRODUCT_BUILD_PROP_OVERRIDES += \
     PRIVATE_BUILD_DESC="cannon-user 12 SP1A.210812.016 V13.0.2.0.SJEMIXM release-keys"
 
