@@ -317,9 +317,27 @@ jobs:
           "$NINJA" -f out/soong/build.ninja out/host/linux-x86/bin/mkbootimg 2>&1 | tail -25 || true
           ls -la out/host/linux-x86/bin/mkbootimg 2>&1 || echo "mkbootimg 编译失败"
           echo "=== 第3步: 重跑make生成recovery.img ==="
+          echo "=== sepolicy targets(soong) ==="
+          grep -n 'name: "precompiled_sepolicy"' system/sepolicy/Android.bp 2>&1 || echo "Android.bp无precompiled_sepolicy"
+          "$NINJA" -f out/soong/build.ninja -t targets all 2>/dev/null | grep -E 'precompiled_sepolicy|/sepolicy$' | head -20 || true
           echo "=== out/soong before build ==="; ls -la out/soong/ 2>&1 | head -40
+          set +e
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
-              BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -250
+              BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/twrp_step3.log 2>&1
+          STEP3_RC=$?
+          tail -250 /tmp/twrp_step3.log
+          if [ $STEP3_RC -ne 0 ]; then
+            if grep -q 'precompiled_sepolicy.*missing and no known rule' /tmp/twrp_step3.log; then
+              echo "=== 第4步: sepolicy 仍无规则，临时移除 recovery 对 recovery_sepolicy 的依赖 ==="
+              python3 scripts/patch_recovery_sepolicy.py
+              build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
+                  BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -250
+            else
+              echo "第3步失败，非 precompiled_sepolicy 原因"
+              exit $STEP3_RC
+            fi
+          fi
+          set -e
           echo "=== out/soong after build ==="; ls -la out/soong/ 2>&1 | head -40
           echo "=== recovery.img 输出路径检查 ==="
           find out/ -name "recovery.img" -exec ls -lh {} \; 2>&1 | head

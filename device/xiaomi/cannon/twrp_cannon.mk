@@ -28,6 +28,17 @@ $(call inherit-product-if-exists, vendor/pb/config/common.mk)
 # Inherit from OMNI-common Stuff, if building from below Android 10.
 $(call inherit-product-if-exists, vendor/omni/config/common.mk)
 
+# TeamWin 的 twrp-14 manifest 不含完整 sepolicy；显式把 Soong 的
+# precompiled_sepolicy 和兼容模块 sepolicy 加入产品，避免 ninja 报
+# "precompiled_sepolicy missing and no known rule"。
+# 只有 system/sepolicy/Android.bp 存在时才加，避免 manifest 没同步到时
+# Soong 直接报 "module precompiled_sepolicy not found"。
+ifneq ($(wildcard system/sepolicy/Android.bp),)
+PRODUCT_PACKAGES += \
+    precompiled_sepolicy \
+    sepolicy
+endif
+
 PRODUCT_GMS_CLIENTID_BASE := android-$(PRODUCT_MANUFCATURER)
 
 PRODUCT_BUILD_PROP_OVERRIDES += \
