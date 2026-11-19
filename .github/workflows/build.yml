@@ -241,21 +241,30 @@ jobs:
           # 以下host工具在TeamWin精简manifest下soong没有生成规则：
           # mkbootfs 用源码+fs_config桩直接编译；minigzip 用gzip代替。
           mkdir -p out/host/linux-x86/bin
-          if [ -f system/core/mkbootfs/mkbootfs.c ]; then
-            printf '%s\n' \
-              '#include <stdint.h>' \
-              '#include <sys/stat.h>' \
-              'void fs_config(const char* path, int dir, const char* target_out_path, unsigned* uid,' \
-              '               unsigned* gid, unsigned* mode, uint64_t* capabilities) {' \
-              '  struct stat st;' \
-              '  *uid = 0; *gid = 0; *capabilities = 0;' \
-              '  if (!stat(path, &st)) *mode = st.st_mode;' \
-              '  else *mode = dir ? (S_IFDIR | 0755) : (S_IFREG | 0644);' \
-              '}' > /tmp/fs_config_stub.c
-            gcc -O2 -o out/host/linux-x86/bin/mkbootfs system/core/mkbootfs/mkbootfs.c /tmp/fs_config_stub.c \
-                -Isystem/core/libcutils/include -Isystem/core/libcutils/include_outside_system -Isystem/core/include 2>&1 | tail -10 || true
+          # 关键修复：TeamWin精简manifest没有system/core/mkbootfs源码和private头文件，
+          # 导致ninja报 'out/host/linux-x86/bin/mkbootfs missing and no known rule'。
+          # 直接从AOSP android14-release拉源码和3个头文件，再用fs_config桩编译。
+          mkdir -p system/core/mkbootfs out/host/linux-x86/include/private
+          if [ ! -s system/core/mkbootfs/mkbootfs.c ]; then
+            curl -fsSL "https://android.googlesource.com/platform/system/core/+/refs/heads/android14-release/mkbootfs/mkbootfs.c?format=TEXT" | base64 -d > system/core/mkbootfs/mkbootfs.c
           fi
-          ls -la out/host/linux-x86/bin/mkbootfs 2>&1 || echo "MKBOOTFS_BUILD_FAILED"
+          for h in fs_config.h android_filesystem_config.h android_filesystem_capability.h; do
+            curl -fsSL "https://android.googlesource.com/platform/system/core/+/refs/heads/android14-release/libcutils/include/private/$h?format=TEXT" | base64 -d > "out/host/linux-x86/include/private/$h"
+          done
+          printf '%s\n' \
+            '#include <stdint.h>' \
+            '#include <sys/stat.h>' \
+            'void fs_config(const char* path, int dir, const char* target_out_path, unsigned* uid,' \
+            '               unsigned* gid, unsigned* mode, uint64_t* capabilities) {' \
+            '  struct stat st;' \
+            '  *uid = 0; *gid = 0; *capabilities = 0;' \
+            '  if (!stat(path, &st)) *mode = st.st_mode;' \
+            '  else *mode = dir ? (S_IFDIR | 0755) : (S_IFREG | 0644);' \
+            '}' > /tmp/fs_config_stub.c
+          gcc -O2 -o out/host/linux-x86/bin/mkbootfs system/core/mkbootfs/mkbootfs.c /tmp/fs_config_stub.c \
+              -Iout/host/linux-x86/include 2>&1 | tail -20
+          test -x out/host/linux-x86/bin/mkbootfs
+          ls -la out/host/linux-x86/bin/mkbootfs
           [ -x out/host/linux-x86/bin/minigzip ] || printf '#!/bin/sh\nexec gzip "$@"\n' > out/host/linux-x86/bin/minigzip
           chmod +x out/host/linux-x86/bin/minigzip
           ls -la out/host/linux-x86/bin/minigzip
