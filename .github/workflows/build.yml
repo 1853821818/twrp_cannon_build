@@ -133,6 +133,20 @@ jobs:
             git clone --depth 1 -b android14-release https://android.googlesource.com/platform/system/tools/mkbootimg system/tools/mkbootimg 2>&1 | tail -3 || true
           fi
           ls system/tools/mkbootimg/Android.bp system/tools/mkbootimg/mkbootimg.py 2>&1
+          # 关键修复：TeamWin twrp-14 manifest 不含 system/sepolicy 与 external/selinux，
+          # 会导致 ninja 报 precompiled_sepolicy 缺失且无生成规则。
+          repo sync -j4 -c --no-tags system/sepolicy external/selinux 2>&1 | tail -5 || true
+          if [ ! -f system/sepolicy/Android.mk ]; then
+            rm -rf system/sepolicy
+            git clone --depth 1 -b android14-release https://android.googlesource.com/platform/system/sepolicy system/sepolicy 2>&1 | tail -3 || \
+            git clone --depth 1 -b android14-release https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/system/sepolicy.git system/sepolicy 2>&1 | tail -3
+          fi
+          if [ ! -f external/selinux/Android.mk ]; then
+            rm -rf external/selinux
+            git clone --depth 1 -b android14-release https://android.googlesource.com/platform/external/selinux external/selinux 2>&1 | tail -3 || \
+            git clone --depth 1 -b android14-release https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/external/selinux.git external/selinux 2>&1 | tail -3
+          fi
+          ls -la system/sepolicy/Android.mk external/selinux/Android.mk 2>&1
           echo "SYNC_DONE" 
 
       - name: Copy device tree
