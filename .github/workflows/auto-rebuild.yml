@@ -5,7 +5,7 @@ on:
     workflows: ["Build TWRP for cannon"]
     types: [completed]
   schedule:
-    # 定时巡检：每30分钟看一次最近一次构建，失败就重跑（最多3次）
+    # 定时巡检：每30分钟看一次最近一次构建，失败/取消/超时就重建（最多3次）
     - cron: '*/30 * * * *'
 
 permissions:
@@ -16,7 +16,11 @@ jobs:
   rerun:
     runs-on: ubuntu-latest
     if: >
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt < 3)
+      (github.event_name == 'workflow_run'
+        && (github.event.workflow_run.conclusion == 'failure'
+            || github.event.workflow_run.conclusion == 'cancelled'
+            || github.event.workflow_run.conclusion == 'timed_out')
+        && github.event.workflow_run.run_attempt < 3)
       || github.event_name == 'schedule'
     steps:
       - name: Rerun failed build (or dispatch if last build failed)
@@ -27,17 +31,20 @@ jobs:
           set -e
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             rid="${{ github.event.workflow_run.id }}"
-            echo "workflow_run failure, rerun failed jobs of run $rid"
-            gh run rerun "$rid" --failed || true
+            echo "workflow_run $rid concluded ${{ github.event.workflow_run.conclusion }}, dispatch a fresh build"
+            gh workflow run build.yml --ref cannon-decrypt || true
           else
             last=$(gh run list --workflow=build.yml --limit 1 --json databaseId,conclusion,status \
               --jq '.[0] | "\(.databaseId) \(.conclusion) \(.status)"')
             echo "last run: $last"
             concl=$(echo "$last" | awk '{print $2}')
-            if [ "$concl" = "failure" ]; then
-              echo "last build failed, dispatch a fresh build"
-              gh workflow run build.yml --ref cannon-decrypt || true
-            else
-              echo "last build not failed, nothing to do"
-            fi
+            case "$concl" in
+              failure|cancelled|timed_out)
+                echo "last build $concl, dispatch a fresh build"
+                gh workflow run build.yml --ref cannon-decrypt || true
+                ;;
+              *)
+                echo "last build $concl, nothing to do"
+                ;;
+            esac
           fi
