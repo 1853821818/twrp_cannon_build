@@ -1,0 +1,31 @@
+name: Fetch A14 TWRP donor
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download marble A14 TWRP
+        run: |
+          set -eux
+          mkdir -p out
+          URL="https://sourceforge.net/projects/recovery-for-xiaomi-devices/files/marble/twrp-3.7.1_12-v8.6_A14-marble-skkk.img/download"
+          for i in 1 2 3; do
+            curl -L --fail --retry 3 --retry-delay 5 \
+              -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36' \
+              -e 'https://sourceforge.net/projects/recovery-for-xiaomi-devices/files/marble/' \
+              "$URL" -o out/donor.img && break || sleep 10
+          done
+          ls -lh out/donor.img
+          file out/donor.img
+          test "$(stat -c%s out/donor.img)" -gt 50000000
+          sha256sum out/donor.img
+
+      - name: Upload donor
+        uses: actions/upload-artifact@v4
+        with:
+          name: a14-marble-donor
+          path: out/donor.img
+          if-no-files-found: error
