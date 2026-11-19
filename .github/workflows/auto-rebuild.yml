@@ -5,8 +5,8 @@ on:
     workflows: ["Build TWRP for cannon"]
     types: [completed]
   schedule:
-    # 定时巡检：每30分钟看一次最近一次构建，失败/取消/超时就重建（最多3次）
-    - cron: '*/30 * * * *'
+    # 10分钟巡检：豆包定时任务最低1小时，这里补10分钟卡死/失败检查
+    - cron: '*/10 * * * *'
 
 permissions:
   actions: write
@@ -34,17 +34,39 @@ jobs:
             echo "workflow_run $rid concluded ${{ github.event.workflow_run.conclusion }}, dispatch a fresh build"
             gh workflow run build.yml --ref cannon-decrypt || true
           else
-            last=$(gh run list --workflow=build.yml --limit 1 --json databaseId,conclusion,status \
-              --jq '.[0] | "\(.databaseId) \(.conclusion) \(.status)"')
+            last=$(gh run list --workflow=build.yml --limit 1 \
+              --json databaseId,status,conclusion,createdAt \
+              --jq '.[0] | "\(.databaseId) \(.status) \(.conclusion) \(.createdAt)"')
             echo "last run: $last"
-            concl=$(echo "$last" | awk '{print $2}')
-            case "$concl" in
-              failure|cancelled|timed_out)
-                echo "last build $concl, dispatch a fresh build"
-                gh workflow run build.yml --ref cannon-decrypt || true
+            rid=$(echo "$last" | awk '{print $1}')
+            st=$(echo "$last" | awk '{print $2}')
+            concl=$(echo "$last" | awk '{print $3}')
+            created=$(echo "$last" | awk '{print $4}')
+            case "$st" in
+              queued|in_progress|waiting|requested|pending)
+                epoch=$(date -d "$created" +%s 2>/dev/null || echo 0)
+                now=$(date +%s)
+                elapsed=$((now - epoch))
+                echo "last build active ${elapsed}s"
+                if [ "$epoch" -gt 0 ] && [ "$elapsed" -gt 5400 ]; then
+                  echo "last build stuck >90min, cancel and dispatch"
+                  gh run cancel "$rid" || true
+                  sleep 10
+                  gh workflow run build.yml --ref cannon-decrypt || true
+                else
+                  echo "last build still active, wait"
+                fi
                 ;;
               *)
-                echo "last build $concl, nothing to do"
+                case "$concl" in
+                  failure|cancelled|timed_out)
+                    echo "last build $concl, dispatch a fresh build"
+                    gh workflow run build.yml --ref cannon-decrypt || true
+                    ;;
+                  *)
+                    echo "last build $concl, nothing to do"
+                    ;;
+                esac
                 ;;
             esac
           fi
