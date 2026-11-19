@@ -215,6 +215,13 @@ jobs:
           export PRODUCT_EXTRA_VNDK_VERSIONS=
           # Android 14正确编译方案：ap1a是Android 14的make格式release名
           export TARGET_RELEASE=ap1a
+          # TeamWin minimal manifest 没有 system/sepolicy 的 precompiled_sepolicy 生成规则。
+          # 用本设备可用的已编译 sepolicy 预置到目标路径，避免 ninja 在 sepolicy 目标处报
+          # "precompiled_sepolicy missing and no known rule"。
+          mkdir -p out/target/product/cannon/obj/ETC/precompiled_sepolicy_intermediates
+          cp device/xiaomi/cannon/prebuilt/sepolicy \
+             out/target/product/cannon/obj/ETC/precompiled_sepolicy_intermediates/precompiled_sepolicy
+          ls -lh out/target/product/cannon/obj/ETC/precompiled_sepolicy_intermediates/precompiled_sepolicy
           # 手动预生成release config .mk，避免make的KATI_shell_no_rerun跳过rbcrun导致.mk缺失
           # 精确复制release_config.mk的entrypoint生成逻辑(load build_flags.scl + ap1a.scl)
           mkdir -p out/starlark_results
@@ -329,9 +336,16 @@ jobs:
           if [ $STEP3_RC -ne 0 ]; then
             if grep -q 'precompiled_sepolicy.*missing and no known rule' /tmp/twrp_step3.log; then
               echo "=== 第4步: sepolicy 仍无规则，临时移除 recovery 对 recovery_sepolicy 的依赖 ==="
-              python3 scripts/patch_recovery_sepolicy.py
+              python3 "$GITHUB_WORKSPACE/scripts/patch_recovery_sepolicy.py"
+              set +e
               build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
-                  BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -250
+                  BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/twrp_step4.log 2>&1
+              STEP4_RC=$?
+              tail -250 /tmp/twrp_step4.log
+              if [ $STEP4_RC -ne 0 ]; then
+                echo "第4步仍失败，退出码 $STEP4_RC"
+                exit $STEP4_RC
+              fi
             else
               echo "第3步失败，非 precompiled_sepolicy 原因"
               exit $STEP3_RC
@@ -347,3 +361,4 @@ jobs:
         with:
           name: twrp-cannon
           path: ~/android/twrp/out/target/product/cannon/recovery.img
+          if-no-files-found: error
