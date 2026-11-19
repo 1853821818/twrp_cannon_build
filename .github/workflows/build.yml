@@ -141,12 +141,15 @@ jobs:
             git clone --depth 1 -b android14-release https://android.googlesource.com/platform/system/sepolicy system/sepolicy 2>&1 | tail -3 || \
             git clone --depth 1 -b android14-release https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/system/sepolicy.git system/sepolicy 2>&1 | tail -3
           fi
-          if [ ! -f external/selinux/Android.mk ]; then
+          if [ ! -d external/selinux/libselinux ]; then
             rm -rf external/selinux
+            git clone --depth 1 -b android14-release https://github.com/aosp-mirror/platform_external_selinux external/selinux 2>&1 | tail -3 || \
             git clone --depth 1 -b android14-release https://android.googlesource.com/platform/external/selinux external/selinux 2>&1 | tail -3 || \
             git clone --depth 1 -b android14-release https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/external/selinux.git external/selinux 2>&1 | tail -3
           fi
-          ls -la system/sepolicy/Android.mk external/selinux/Android.mk 2>&1
+          ls -ld system/sepolicy external/selinux 2>&1
+          test -f system/sepolicy/Android.mk
+          test -d external/selinux/libselinux
           echo "SYNC_DONE" 
 
       - name: Copy device tree
