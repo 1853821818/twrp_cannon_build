@@ -1,0 +1,103 @@
+name: Build TWRP 12.1 for cannon (Android 14 FBE)
+
+on:
+  workflow_dispatch:
+
+env:
+  DEVICE: cannon
+  DEVICE_PATH: device/xiaomi/cannon
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/lib/jvm || true
+          sudo -E apt-get -qq purge azure-cli ghc* zulu* llvm* firefox google* dotnet* \
+            powershell openjdk* mongodb* moby* || true
+          sudo docker image prune -a -f || true
+          df -h /
+
+      - name: Install dependencies
+        run: |
+          sudo -E apt-get -qq update || true
+          sudo -E apt-get -qq install \
+            git ccache cpio automake flex bison gperf build-essential \
+            zip curl wget zlib1g-dev libxml2-utils lzop pngcrush rsync \
+            schedtool squashfs-tools xsltproc unzip python-is-python3 \
+            openjdk-11-jdk-headless repo || true
+          java -version
+
+      - name: Add swap
+        run: |
+          sudo swapoff -a || true
+          sudo dd if=/dev/zero of=/swapfile bs=1M count=8192
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
+
+      - name: Configure git
+        run: |
+          git config --global user.name "twrp-builder"
+          git config --global user.email "twrp-builder@users.noreply.github.com"
+          git config --global --add safe.directory '*'
+
+      - name: Checkout device tree
+        uses: actions/checkout@v4
+
+      - name: Sync TWRP 12.1 source
+        run: |
+          mkdir -p ~/twrp && cd ~/twrp
+          repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
+          repo sync -c --no-tags -j8 || repo sync -c --no-tags -j4
+          df -h /
+
+      - name: Inject cannon device tree
+        run: |
+          mkdir -p ~/twrp/device/xiaomi
+          cp -a device/xiaomi/cannon ~/twrp/device/xiaomi/
+          grep -n 'TW_USE_FSCRYPT_POLICY\|keymaster_ver\|fileencryption' \
+            ~/twrp/device/xiaomi/cannon/config/TWRPConfig.mk \
+            ~/twrp/device/xiaomi/cannon/twrp_cannon.mk \
+            ~/twrp/device/xiaomi/cannon/recovery/root/system/etc/recovery.fstab
+
+      - name: Build recovery image
+        run: |
+          export PATH=~/bin:$PATH
+          export ALLOW_MISSING_DEPENDENCIES=true
+          export LC_ALL=C
+          cd ~/twrp
+          source build/envsetup.sh
+          lunch twrp_cannon-eng
+          # recovery 不需要把 vendor/product 复制进 ramdisk，避免 128MB 限制
+          sed -i 's|rsync -a --exclude=sdcard |rsync -a --exclude=sdcard --exclude=/root/vendor --exclude=/root/product |' build/make/core/Makefile
+          grep -n "exclude=/root/vendor" build/make/core/Makefile
+          mka recoveryimage -j$(nproc)
+
+      - name: Verify recovery image
+        run: |
+          cd ~/twrp
+          ls -lh out/target/product/cannon/recovery.img
+          python3 - <<'PY'
+          import struct, os
+          p='out/target/product/cannon/recovery.img'
+          with open(p,'rb') as f:
+              hdr=f.read(1056)
+          print('magic:', hdr[0:8].decode('ascii','replace'))
+          print('size:', os.path.getsize(p))
+          print('kernel_size:', struct.unpack_from('<I',hdr,8)[0])
+          print('ramdisk_size:', struct.unpack_from('<I',hdr,16)[0])
+          print('page_size:', struct.unpack_from('<I',hdr,36)[0])
+          print('header_version:', struct.unpack_from('<I',hdr,40)[0])
+          PY
+
+      - name: Upload recovery image
+        uses: actions/upload-artifact@v4
+        with:
+          name: twrp-12.1-cannon-fbe
+          path: ~/twrp/out/target/product/cannon/recovery.img
+          if-no-files-found: error
