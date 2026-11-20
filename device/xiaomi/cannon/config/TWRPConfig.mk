@@ -3,8 +3,8 @@ TW_THEME := portrait_hdpi
 TW_INCLUDE_RESETPROP := true
 TW_INCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO_FBE := true
-# Android 11+ 使用 fscrypt policy v2；本机有 metadata 分区，启用 metadata 解密
-TW_USE_FSCRYPT_POLICY := 2
+# OriginOS4.0-24810 包的 vendor fstab 是 fileencryption=...:v1，TWRP 必须同步用 policy 1
+TW_USE_FSCRYPT_POLICY := 1
 TW_INCLUDE_FBE_METADATA_DECRYPT := true
 # 固定使用本机 vendor keymaster 4.1，避免 TWRP 自动探测到错误版本
 TW_FORCE_KEYMASTER_VER := true
