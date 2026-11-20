@@ -211,7 +211,15 @@ jobs:
           test -x out/host/linux-x86/bin/fc_sort
           # Android 14 release机制要求rbcrun存在于out/rbcrun
           # 用Go直接编译rbcrun(避免完整soong构建)，供release_config.mk调用
-          cd build/make/tools/rbcrun && GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun 2>&1 | tail -20
+          cd build/make/tools/rbcrun
+          if ! GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun > /tmp/rbcrun_build.log 2>&1; then
+            echo "rbcrun build failed; cloning upstream starlark-go and retry"
+            tail -20 /tmp/rbcrun_build.log
+            rm -rf ../../../../external/starlark-go
+            git clone --depth 1 https://github.com/google/starlark-go ../../../../external/starlark-go 2>&1 | tail -5
+            GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun > /tmp/rbcrun_build2.log 2>&1 || { tail -20 /tmp/rbcrun_build2.log; exit 1; }
+          fi
+          tail -20 /tmp/rbcrun_build.log 2>/dev/null || true
           ls -la ~/android/twrp/out/rbcrun 2>&1 || echo "RBCRUN_MISSING"
           cd ~/android/twrp
           # 兜底：TW_THEME 没被 Soong 收到时，让 gui 默认 portrait_hdpi，避免 build.ninja 退出
