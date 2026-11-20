@@ -526,6 +526,13 @@ jobs:
             done
           done
           set -e
+          # 2.8b: 不再逐个猜库名，直接从 build.ninja 提取全部 shared lib .toc 目标建占位
+          if [ -f out/soong/build.ninja ]; then
+            grep -oE 'out/target/product/cannon/(obj|obj_arm)/SHARED_LIBRARIES/[A-Za-z0-9._+@-]+_intermediates/[A-Za-z0-9._+@-]+\.toc' out/soong/build.ninja 2>/dev/null | sort -u | while read -r toc_file; do
+              mkdir -p "$(dirname "$toc_file")"
+              [ -e "$toc_file" ] || : > "$toc_file"
+            done
+          fi
           echo "=== 第2.9步: 补齐 libmtdutils 依赖的静态库占位（obj + obj_arm） ==="
           set +e
           for variant in obj obj_arm; do
