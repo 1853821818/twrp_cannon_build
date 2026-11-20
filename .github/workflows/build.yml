@@ -500,16 +500,16 @@ jobs:
           fi
           echo "=== 第2.8步: 为所有被引用的 shared lib 补 .toc 占位 ==="
           set +e
-          for lib in libc++ libc libcutils liblog libbase libutils libhardware libselinux; do
+          for lib in libc++ libc++abi libc libm libdl libstdc++ libz liblog libcutils libbase libutils libhardware libselinux libcrypto libssl libtar libblkid libminuitwrp libtwadbbu libbootloader_message libcrecovery libtwrpdigest libaosprecovery libziparchive libdl_android.bootstrap libext2fs libf2fs libsparse liblp libpng libjpeg libsuspend libsync libion libdm libufdt libufdtutils libavb libkeymaster4support libkeymaster4_1support libkeymaster_messages libkeymaster_portable libsoftkeymaster libgatekeeper; do
             toc_dir="out/target/product/cannon/obj/SHARED_LIBRARIES/${lib}_intermediates"
             mkdir -p "$toc_dir"
             [ -e "$toc_dir/${lib}.toc" ] || : > "$toc_dir/${lib}.toc"
           done
-          grep -oE '[A-Za-z0-9_./+$@-]+\.toc' out/soong/build.ninja 2>/dev/null | sort -u > /tmp/all_tocs.txt || true
-          while IFS= read -r toc; do
-            mkdir -p "$(dirname "$toc")"
-            [ -e "$toc" ] || : > "$toc"
-          done < /tmp/all_tocs.txt
+          for toc_dir in out/target/product/cannon/obj/SHARED_LIBRARIES/*_intermediates; do
+            [ -d "$toc_dir" ] || continue
+            toc_lib=$(basename "$toc_dir" _intermediates)
+            [ -e "$toc_dir/${toc_lib}.toc" ] || : > "$toc_dir/${toc_lib}.toc"
+          done
           set -e
           echo "=== 第3步: 重跑make生成recovery.img ==="
           # 第3步前再次确保两个“无规则但被依赖”的产物存在，避免soong重新生成build.ninja后被清掉。
