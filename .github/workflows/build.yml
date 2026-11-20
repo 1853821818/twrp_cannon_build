@@ -375,6 +375,20 @@ jobs:
           # recovery 二进制已由编译器产出，这里放 exit 0 占位让时间戳规则通过。
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_elf_file
           chmod +x out/host/linux-x86/bin/check_elf_file
+          # 精简 manifest 下 LLVM_PREBUILTS_PATH 会退化成 /linux-x86/bin，
+          # 把 prebuilts/clang 里真实的 llvm-readobj 链过去，避免 check_elf_file 缺工具。
+          if [ ! -x /linux-x86/bin/llvm-readobj ]; then
+            LLVM_READOBJ=$(find prebuilts/clang/host/linux-x86 -type f -path '*/bin/llvm-readobj' 2>/dev/null | head -1)
+            if [ -n "$LLVM_READOBJ" ]; then
+              sudo mkdir -p /linux-x86/bin
+              sudo ln -sf "$PWD/$LLVM_READOBJ" /linux-x86/bin/llvm-readobj
+            else
+              echo "WARNING: prebuilts/clang 未找到 llvm-readobj，使用 exit 0 占位"
+              printf '#!/bin/sh\nexit 0\n' | sudo tee /linux-x86/bin/llvm-readobj >/dev/null
+              sudo chmod +x /linux-x86/bin/llvm-readobj
+            fi
+          fi
+          ls -la /linux-x86/bin/llvm-readobj 2>&1 || true
           # recovery.img 的 AVB 签名需要 avbtool 和 testkey；精简 manifest 未包含 external/avb。
           if [ ! -f external/avb/avbtool.py ]; then
             rm -rf external/avb
@@ -496,6 +510,20 @@ jobs:
           # recovery 二进制已由编译器产出，这里放 exit 0 占位让时间戳规则通过。
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_elf_file
           chmod +x out/host/linux-x86/bin/check_elf_file
+          # 精简 manifest 下 LLVM_PREBUILTS_PATH 会退化成 /linux-x86/bin，
+          # 把 prebuilts/clang 里真实的 llvm-readobj 链过去，避免 check_elf_file 缺工具。
+          if [ ! -x /linux-x86/bin/llvm-readobj ]; then
+            LLVM_READOBJ=$(find prebuilts/clang/host/linux-x86 -type f -path '*/bin/llvm-readobj' 2>/dev/null | head -1)
+            if [ -n "$LLVM_READOBJ" ]; then
+              sudo mkdir -p /linux-x86/bin
+              sudo ln -sf "$PWD/$LLVM_READOBJ" /linux-x86/bin/llvm-readobj
+            else
+              echo "WARNING: prebuilts/clang 未找到 llvm-readobj，使用 exit 0 占位"
+              printf '#!/bin/sh\nexit 0\n' | sudo tee /linux-x86/bin/llvm-readobj >/dev/null
+              sudo chmod +x /linux-x86/bin/llvm-readobj
+            fi
+          fi
+          ls -la /linux-x86/bin/llvm-readobj 2>&1 || true
           if [ ! -f external/avb/avbtool.py ]; then
             rm -rf external/avb
             git clone --depth 1 -b android14-release https://android.googlesource.com/platform/external/avb external/avb 2>&1 | tail -3
