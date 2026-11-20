@@ -344,6 +344,11 @@ jobs:
               > build/make/tools/uffd_gc_utils.py
           fi
           printf 'runner\n' > out/soong/build_hostname.txt
+          # 精简 TWRP manifest 的 bootable/recovery 没有 res-xhdpi，补一份 cannon 可用资源。
+          if [ -d device/xiaomi/cannon/prebuilt/res-xhdpi ]; then
+            mkdir -p bootable/recovery/res-xhdpi
+            cp -a device/xiaomi/cannon/prebuilt/res-xhdpi/. bootable/recovery/res-xhdpi/
+          fi
           # Android.mk空→soong host工具在make侧无规则。策略:
           # 1) 先跑一次make-mode: soong bootstrap生成build.ninja(预期在mkbootimg失败)
           # 2) 用soong build.ninja直接编译host工具mkbootimg
@@ -398,6 +403,11 @@ jobs:
               > build/make/tools/uffd_gc_utils.py
           fi
           printf 'runner\n' > out/soong/build_hostname.txt
+          # 精简 TWRP manifest 的 bootable/recovery 没有 res-xhdpi，补一份 cannon 可用资源。
+          if [ -d device/xiaomi/cannon/prebuilt/res-xhdpi ]; then
+            mkdir -p bootable/recovery/res-xhdpi
+            cp -a device/xiaomi/cannon/prebuilt/res-xhdpi/. bootable/recovery/res-xhdpi/
+          fi
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_radio_versions
           chmod +x out/host/linux-x86/bin/check_radio_versions
           if [ ! -f external/avb/avbtool.py ]; then
