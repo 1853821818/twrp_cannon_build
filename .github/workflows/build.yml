@@ -318,6 +318,10 @@ jobs:
           # 这里先放一个占位，让 step1 继续生成完整 build.ninja。
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/mkbootimg
           chmod +x out/host/linux-x86/bin/mkbootimg
+          # check_radio_versions 只用于生成 android-info.txt 前校验基带版本；TWRP 不打包 radio，
+          # 精简 manifest 没有该 host 工具规则，直接放 exit 0 的占位。
+          printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_radio_versions
+          chmod +x out/host/linux-x86/bin/check_radio_versions
           # post_process_props 也是精简manifest里没有host规则的Python工具，直接做wrapper。
           if [ ! -f build/make/tools/post_process_props.py ]; then
             mkdir -p build/make/tools
@@ -371,6 +375,8 @@ jobs:
             > out/target/product/cannon/ramdisk_node_list
           printf '#!/bin/sh\nexec python3 %s/build/make/tools/post_process_props.py "$@"\n' "$PWD" > out/host/linux-x86/bin/post_process_props
           chmod +x out/host/linux-x86/bin/post_process_props
+          printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_radio_versions
+          chmod +x out/host/linux-x86/bin/check_radio_versions
           echo "=== sepolicy targets(soong) ==="
           grep -n 'name: "precompiled_sepolicy"' system/sepolicy/Android.bp 2>&1 || echo "Android.bp无precompiled_sepolicy"
           "$NINJA" -f out/soong/build.ninja -t targets all 2>/dev/null | grep -E 'precompiled_sepolicy|/sepolicy$' | head -20 || true
