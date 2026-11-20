@@ -72,6 +72,11 @@ jobs:
             rm -rf bootable/recovery
             git clone -q --depth 1 -b android-14 https://github.com/TeamWin/android_bootable_recovery.git bootable/recovery 2>&1 | tail -3
           fi
+          # TeamWin 的 bootable/recovery/prebuilt/Android.bp 只声明 soong_namespace
+          # 并 import external/lptools；twrp-14 精简 manifest 不含该仓库，会导致
+          # build.ninja 报 "namespace external/lptools does not exist"。
+          # recovery 不依赖 lptools 命名空间，移除这个仅含 namespace 声明的文件。
+          rm -f bootable/recovery/prebuilt/Android.bp
           # envsetup.sh:2117需要vendor/twrp/build/envsetup.sh(TeamWin的android_vendor_twrp仓库)
           # twrp-14 manifest不含此项目，从GitHub TeamWin仓库android-14分支clone
           [ -f vendor/twrp/build/envsetup.sh ] || \
