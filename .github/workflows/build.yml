@@ -511,25 +511,29 @@ jobs:
             mkdir -p "$LIBUTILS_DIR"
             touch "$LIBUTILS_DIR/libcutils.toc"
           fi
-          echo "=== 第2.8步: 为所有被引用的 shared lib 补 .toc 占位 ==="
+          echo "=== 第2.8步: 为所有被引用的 shared lib 补 .toc 占位（obj + obj_arm） ==="
           set +e
-          for lib in libc++ libc++abi libc libm libdl libstdc++ libz liblog libcutils libbase libutils libhardware libselinux libcrypto libssl libtar libblkid libminuitwrp libtwadbbu libbootloader_message libcrecovery libtwrpdigest libaosprecovery libziparchive libdl_android.bootstrap libext2fs libf2fs libsparse liblp libpng libjpeg libsuspend libsync libion libdm libufdt libufdtutils libavb libkeymaster4support libkeymaster4_1support libkeymaster_messages libkeymaster_portable libsoftkeymaster libgatekeeper; do
-            toc_dir="out/target/product/cannon/obj/SHARED_LIBRARIES/${lib}_intermediates"
-            mkdir -p "$toc_dir"
-            [ -e "$toc_dir/${lib}.toc" ] || : > "$toc_dir/${lib}.toc"
-          done
-          for toc_dir in out/target/product/cannon/obj/SHARED_LIBRARIES/*_intermediates; do
-            [ -d "$toc_dir" ] || continue
-            toc_lib=$(basename "$toc_dir" _intermediates)
-            [ -e "$toc_dir/${toc_lib}.toc" ] || : > "$toc_dir/${toc_lib}.toc"
+          for variant in obj obj_arm; do
+            for lib in libc++ libc++abi libc libm libdl libstdc++ libz liblog libcutils libbase libutils libhardware libselinux libcrypto libssl libtar libblkid libminuitwrp libtwadbbu libbootloader_message libcrecovery libtwrpdigest libaosprecovery libziparchive libdl_android.bootstrap libext2fs libf2fs libsparse liblp libpng libjpeg libsuspend libsync libion libdm libufdt libufdtutils libavb libkeymaster4support libkeymaster4_1support libkeymaster_messages libkeymaster_portable libsoftkeymaster libgatekeeper; do
+              toc_dir="out/target/product/cannon/${variant}/SHARED_LIBRARIES/${lib}_intermediates"
+              mkdir -p "$toc_dir"
+              [ -e "$toc_dir/${lib}.toc" ] || : > "$toc_dir/${lib}.toc"
+            done
+            for toc_dir in out/target/product/cannon/${variant}/SHARED_LIBRARIES/*_intermediates; do
+              [ -d "$toc_dir" ] || continue
+              toc_lib=$(basename "$toc_dir" _intermediates)
+              [ -e "$toc_dir/${toc_lib}.toc" ] || : > "$toc_dir/${toc_lib}.toc"
+            done
           done
           set -e
-          echo "=== 第2.9步: 补齐 libmtdutils 依赖的静态库占位 ==="
+          echo "=== 第2.9步: 补齐 libmtdutils 依赖的静态库占位（obj + obj_arm） ==="
           set +e
-          for lib in libc++demangle libc++abi libunwind; do
-            a_dir="out/target/product/cannon/obj/STATIC_LIBRARIES/${lib}_intermediates"
-            mkdir -p "$a_dir"
-            [ -s "$a_dir/${lib}.a" ] || ar rcs "$a_dir/${lib}.a"
+          for variant in obj obj_arm; do
+            for lib in libc++demangle libc++abi libunwind; do
+              a_dir="out/target/product/cannon/${variant}/STATIC_LIBRARIES/${lib}_intermediates"
+              mkdir -p "$a_dir"
+              [ -s "$a_dir/${lib}.a" ] || ar rcs "$a_dir/${lib}.a"
+            done
           done
           set -e
           echo "=== 第3步: 重跑make生成recovery.img ==="
