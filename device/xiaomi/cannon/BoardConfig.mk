@@ -127,3 +127,9 @@ include $(DEVICE_PATH)/config/TWRPConfig.mk
 
 # SHRP Configuration
 include $(DEVICE_PATH)/config/SHRPConfig.mk
+
+# TWRP Soong variable export（必须；否则 TW_THEME/TW_BRIGHTNESS_PATH 不会传给 Soong，
+# 会出现 "Could not find ui.xml for TW_THEME: not set" 并导致 build.ninja 生成失败）
+ifneq ($(wildcard vendor/twrp/config/BoardConfigSoong.mk),)
+include vendor/twrp/config/BoardConfigSoong.mk
+endif

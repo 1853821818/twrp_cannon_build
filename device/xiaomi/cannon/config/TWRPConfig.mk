@@ -1,5 +1,7 @@
 # Include to BoardConfig.mk
 TW_THEME := portrait_hdpi
+TARGET_SCREEN_WIDTH := 1080
+TARGET_SCREEN_HEIGHT := 2340
 TW_INCLUDE_RESETPROP := true
 TW_INCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO_FBE := true
