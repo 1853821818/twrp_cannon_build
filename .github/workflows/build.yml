@@ -263,6 +263,10 @@ jobs:
           # 直接复用设备树里已编译好的 A14 兼容策略。
           mkdir -p out/target/product/cannon/recovery/root
           cp device/xiaomi/cannon/prebuilt/sepolicy out/target/product/cannon/recovery/root/sepolicy
+          # recovery/root 还会依赖 plat_file_contexts 等SELinux上下文；精简manifest同样无生成规则。
+          for f in plat_file_contexts plat_property_contexts plat_service_contexts plat_hwservice_contexts plat_keystore2_key_contexts vendor_file_contexts vendor_property_contexts vndservice_contexts file_contexts; do
+            [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
+          done
           # AOSP soong_build只生成build.ninja；make接口文件(make_vars/installs/Android/late)由build.ninja
           # 执行时生成，但kati的cleanspec/build先于runNinja需要它们。touch空文件保底让kati过，
           # recovery模块编译由runNinja执行build.ninja完成(soong库已在内)
@@ -376,6 +380,10 @@ jobs:
           printf '%s\n' '4.14.186' > out/soong/dexpreopt/kernel_version_for_uffd_gc.txt
           mkdir -p out/target/product/cannon/recovery/root
           cp device/xiaomi/cannon/prebuilt/sepolicy out/target/product/cannon/recovery/root/sepolicy
+          # recovery/root 还会依赖 plat_file_contexts 等SELinux上下文；精简manifest同样无生成规则。
+          for f in plat_file_contexts plat_property_contexts plat_service_contexts plat_hwservice_contexts plat_keystore2_key_contexts vendor_file_contexts vendor_property_contexts vndservice_contexts file_contexts; do
+            [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
+          done
           set +e
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/twrp_step3.log 2>&1
