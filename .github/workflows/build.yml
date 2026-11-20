@@ -371,6 +371,10 @@ jobs:
           # 精简 manifest 没有该 host 工具规则，直接放 exit 0 的占位。
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_radio_versions
           chmod +x out/host/linux-x86/bin/check_radio_versions
+          # check_elf_file 也是精简 manifest 没有 host 规则的构建期校验工具；
+          # recovery 二进制已由编译器产出，这里放 exit 0 占位让时间戳规则通过。
+          printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_elf_file
+          chmod +x out/host/linux-x86/bin/check_elf_file
           # recovery.img 的 AVB 签名需要 avbtool 和 testkey；精简 manifest 未包含 external/avb。
           if [ ! -f external/avb/avbtool.py ]; then
             rm -rf external/avb
@@ -488,6 +492,10 @@ jobs:
           fi
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_radio_versions
           chmod +x out/host/linux-x86/bin/check_radio_versions
+          # check_elf_file 也是精简 manifest 没有 host 规则的构建期校验工具；
+          # recovery 二进制已由编译器产出，这里放 exit 0 占位让时间戳规则通过。
+          printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_elf_file
+          chmod +x out/host/linux-x86/bin/check_elf_file
           if [ ! -f external/avb/avbtool.py ]; then
             rm -rf external/avb
             git clone --depth 1 -b android14-release https://android.googlesource.com/platform/external/avb external/avb 2>&1 | tail -3
