@@ -37,6 +37,14 @@ ifneq ($(wildcard system/sepolicy/Android.bp),)
 PRODUCT_PACKAGES += \
     precompiled_sepolicy \
     sepolicy
+
+# system/sepolicy 的 file_contexts.bin 规则依赖 host 工具 checkfc/fc_sort/
+# sefcontext_compile，但 TeamWin 的精简构建不会自动编译这些 Soong host 模块。
+# fc_sort 已在 workflow 用官方 tests/fc_sort.py 补齐；这里把另外两个加入
+# PRODUCT_HOST_PACKAGES，让 Soong 生成 out/host/linux-x86/bin 下的可执行文件。
+PRODUCT_HOST_PACKAGES += \
+    checkfc \
+    sefcontext_compile
 endif
 
 PRODUCT_GMS_CLIENTID_BASE := android-$(PRODUCT_MANUFCATURER)
