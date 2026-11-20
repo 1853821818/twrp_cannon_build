@@ -511,6 +511,14 @@ jobs:
             [ -e "$toc_dir/${toc_lib}.toc" ] || : > "$toc_dir/${toc_lib}.toc"
           done
           set -e
+          echo "=== 第2.9步: 补齐 libmtdutils 依赖的静态库占位 ==="
+          set +e
+          for lib in libc++demangle libc++abi libunwind; do
+            a_dir="out/target/product/cannon/obj/STATIC_LIBRARIES/${lib}_intermediates"
+            mkdir -p "$a_dir"
+            [ -s "$a_dir/${lib}.a" ] || ar rcs "$a_dir/${lib}.a"
+          done
+          set -e
           echo "=== 第3步: 重跑make生成recovery.img ==="
           # 第3步前再次确保两个“无规则但被依赖”的产物存在，避免soong重新生成build.ninja后被清掉。
           mkdir -p out/target/product/cannon out/host/linux-x86/bin
