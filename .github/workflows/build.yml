@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig python3 python3-pip repo
+          sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig python3 python3-pip repo selinux-utils
           pip3 install networkx
           # 编译rbcrun(starlark工具链)需要Go，apt默认go1.18太旧，装官方go1.22
           wget -q https://go.dev/dl/go1.22.5.linux-amd64.tar.gz -O /tmp/go.tar.gz && \
@@ -331,10 +331,10 @@ jobs:
           # 直接从AOSP android14-release拉源码和3个头文件，再用fs_config桩编译。
           mkdir -p system/core/mkbootfs out/host/linux-x86/include/private
           if [ ! -s system/core/mkbootfs/mkbootfs.c ]; then
-            curl -fsSL "https://android.googlesource.com/platform/system/core/+/refs/heads/android14-release/mkbootfs/mkbootfs.c?format=TEXT" | base64 -d > system/core/mkbootfs/mkbootfs.c
+            curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors "https://android.googlesource.com/platform/system/core/+/refs/heads/android14-release/mkbootfs/mkbootfs.c?format=TEXT" | base64 -d > system/core/mkbootfs/mkbootfs.c
           fi
           for h in fs_config.h android_filesystem_config.h android_filesystem_capability.h; do
-            curl -fsSL "https://android.googlesource.com/platform/system/core/+/refs/heads/android14-release/libcutils/include/private/$h?format=TEXT" | base64 -d > "out/host/linux-x86/include/private/$h"
+            curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors "https://android.googlesource.com/platform/system/core/+/refs/heads/android14-release/libcutils/include/private/$h?format=TEXT" | base64 -d > "out/host/linux-x86/include/private/$h"
           done
           printf '%s\n' \
             '#include <stdint.h>' \
@@ -381,7 +381,7 @@ jobs:
           # post_process_props 也是精简manifest里没有host规则的Python工具，直接做wrapper。
           if [ ! -f build/make/tools/post_process_props.py ]; then
             mkdir -p build/make/tools
-            curl -fsSL "https://android.googlesource.com/platform/build/+/refs/heads/android14-release/tools/post_process_props.py?format=TEXT" | base64 -d > build/make/tools/post_process_props.py
+            curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors "https://android.googlesource.com/platform/build/+/refs/heads/android14-release/tools/post_process_props.py?format=TEXT" | base64 -d > build/make/tools/post_process_props.py
           fi
           printf '#!/bin/sh\nexec python3 %s/build/make/tools/post_process_props.py "$@"\n' "$PWD" > out/host/linux-x86/bin/post_process_props
           chmod +x out/host/linux-x86/bin/post_process_props
@@ -418,13 +418,22 @@ jobs:
           set -e
           tail -80 /tmp/host_fc_tools.log
           ls -la out/host/linux-x86/bin/checkfc out/host/linux-x86/bin/sefcontext_compile 2>&1 || true
+          if [ ! -x out/host/linux-x86/bin/checkfc ] && command -v checkfc >/dev/null 2>&1; then
+            cp "$(command -v checkfc)" out/host/linux-x86/bin/checkfc
+            chmod +x out/host/linux-x86/bin/checkfc
+          fi
           if [ ! -x out/host/linux-x86/bin/checkfc ]; then
             echo "checkfc 未生成，写入 exit 0 占位（只跳过 file_contexts 校验，不生成产物）"
             printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/checkfc
             chmod +x out/host/linux-x86/bin/checkfc
           fi
+          if [ ! -x out/host/linux-x86/bin/sefcontext_compile ] && command -v sefcontext_compile >/dev/null 2>&1; then
+            cp "$(command -v sefcontext_compile)" out/host/linux-x86/bin/sefcontext_compile
+            chmod +x out/host/linux-x86/bin/sefcontext_compile
+          fi
           if [ ! -x out/host/linux-x86/bin/sefcontext_compile ]; then
-            echo "WARNING: sefcontext_compile 未生成，最终 file_contexts.bin 可能失败"
+            echo "ERROR: sefcontext_compile 未安装，selinux-utils 缺失"
+            exit 1
           fi
           echo "=== 第2步: 用soong build.ninja 编译 mkbootimg ==="
           echo "--- checkout mkbootimg 源码(从repo镜像,若缺失拉googlesource) ---"
