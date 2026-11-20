@@ -200,6 +200,15 @@ jobs:
       - name: Build TWRP
         run: |
           cd ~/android/twrp
+          # Android 14 的 system/sepolicy 只提供 tests/fc_sort.py，没有 fc_sort
+          # 主机二进制模块；但 system/sepolicy/Android.mk 的 file_contexts.bin
+          # 规则仍要求 $(HOST_OUT_EXECUTABLES)/fc_sort。复制官方脚本作为同名
+          # 可执行工具，支持 -i/-o，避免 ninja 报 missing and no known rule。
+          mkdir -p out/host/linux-x86/bin
+          cp system/sepolicy/tests/fc_sort.py out/host/linux-x86/bin/fc_sort
+          chmod +x out/host/linux-x86/bin/fc_sort
+          out/host/linux-x86/bin/fc_sort --help >/dev/null 2>&1 || true
+          test -x out/host/linux-x86/bin/fc_sort
           # Android 14 release机制要求rbcrun存在于out/rbcrun
           # 用Go直接编译rbcrun(避免完整soong构建)，供release_config.mk调用
           cd build/make/tools/rbcrun && GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun 2>&1 | tail -20
