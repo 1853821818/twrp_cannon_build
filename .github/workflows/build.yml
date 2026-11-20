@@ -336,6 +336,14 @@ jobs:
           fi
           printf '#!/bin/sh\nexec python3 %s/build/make/tools/post_process_props.py "$@"\n' "$PWD" > out/host/linux-x86/bin/post_process_props
           chmod +x out/host/linux-x86/bin/post_process_props
+          # 精简 manifest 的 build/make/tools 缺 uffd_gc_utils.py，post_process_props.py 会直接导入失败。
+          if [ ! -f build/make/tools/uffd_gc_utils.py ]; then
+            printf '%s\n' \
+              'def should_enable_uffd_gc(kernel_version_file_for_uffd_gc):' \
+              '    return False' \
+              > build/make/tools/uffd_gc_utils.py
+          fi
+          printf 'runner\n' > out/soong/build_hostname.txt
           # Android.mk空→soong host工具在make侧无规则。策略:
           # 1) 先跑一次make-mode: soong bootstrap生成build.ninja(预期在mkbootimg失败)
           # 2) 用soong build.ninja直接编译host工具mkbootimg
@@ -382,6 +390,14 @@ jobs:
             > out/target/product/cannon/ramdisk_node_list
           printf '#!/bin/sh\nexec python3 %s/build/make/tools/post_process_props.py "$@"\n' "$PWD" > out/host/linux-x86/bin/post_process_props
           chmod +x out/host/linux-x86/bin/post_process_props
+          # 精简 manifest 的 build/make/tools 缺 uffd_gc_utils.py，post_process_props.py 会直接导入失败。
+          if [ ! -f build/make/tools/uffd_gc_utils.py ]; then
+            printf '%s\n' \
+              'def should_enable_uffd_gc(kernel_version_file_for_uffd_gc):' \
+              '    return False' \
+              > build/make/tools/uffd_gc_utils.py
+          fi
+          printf 'runner\n' > out/soong/build_hostname.txt
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_radio_versions
           chmod +x out/host/linux-x86/bin/check_radio_versions
           if [ ! -f external/avb/avbtool.py ]; then
