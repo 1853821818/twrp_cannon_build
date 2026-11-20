@@ -292,6 +292,20 @@ jobs:
           [ -x out/host/linux-x86/bin/minigzip ] || printf '#!/bin/sh\nexec gzip "$@"\n' > out/host/linux-x86/bin/minigzip
           chmod +x out/host/linux-x86/bin/minigzip
           ls -la out/host/linux-x86/bin/minigzip
+          # AOSP 14 minimal manifest 没有 system/core/rootdir，ramdisk_node_list 模块不会生成；
+          # 但 Makefile 把它当作 ramdisk.img 的依赖。先放一个正确的节点清单占位，避免 ninja 直接报
+          # "ramdisk_node_list missing and no known rule"。
+          mkdir -p out/target/product/cannon
+          printf '%s\n' \
+            'dir dev 0755 0 0' \
+            'nod dev/null 0600 0 0 c 1 3' \
+            'nod dev/console 0600 0 0 c 5 1' \
+            'nod dev/urandom 0600 0 0 c 1 9' \
+            > out/target/product/cannon/ramdisk_node_list
+          # step1 的 build 图会检查 mkbootimg 是否有产出；真实 wrapper 在 step2 覆盖，
+          # 这里先放一个占位，让 step1 继续生成完整 build.ninja。
+          printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/mkbootimg
+          chmod +x out/host/linux-x86/bin/mkbootimg
           # Android.mk空→soong host工具在make侧无规则。策略:
           # 1) 先跑一次make-mode: soong bootstrap生成build.ninja(预期在mkbootimg失败)
           # 2) 用soong build.ninja直接编译host工具mkbootimg
