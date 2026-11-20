@@ -322,6 +322,13 @@ jobs:
           # 精简 manifest 没有该 host 工具规则，直接放 exit 0 的占位。
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_radio_versions
           chmod +x out/host/linux-x86/bin/check_radio_versions
+          # recovery.img 的 AVB 签名需要 avbtool 和 testkey；精简 manifest 未包含 external/avb。
+          if [ ! -f external/avb/avbtool.py ]; then
+            rm -rf external/avb
+            git clone --depth 1 -b android14-release https://android.googlesource.com/platform/external/avb external/avb 2>&1 | tail -3
+          fi
+          printf '#!/bin/sh\nexec python3 %s/external/avb/avbtool.py "$@"\n' "$PWD" > out/host/linux-x86/bin/avbtool
+          chmod +x out/host/linux-x86/bin/avbtool
           # post_process_props 也是精简manifest里没有host规则的Python工具，直接做wrapper。
           if [ ! -f build/make/tools/post_process_props.py ]; then
             mkdir -p build/make/tools
@@ -377,6 +384,12 @@ jobs:
           chmod +x out/host/linux-x86/bin/post_process_props
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/check_radio_versions
           chmod +x out/host/linux-x86/bin/check_radio_versions
+          if [ ! -f external/avb/avbtool.py ]; then
+            rm -rf external/avb
+            git clone --depth 1 -b android14-release https://android.googlesource.com/platform/external/avb external/avb 2>&1 | tail -3
+          fi
+          printf '#!/bin/sh\nexec python3 %s/external/avb/avbtool.py "$@"\n' "$PWD" > out/host/linux-x86/bin/avbtool
+          chmod +x out/host/linux-x86/bin/avbtool
           echo "=== sepolicy targets(soong) ==="
           grep -n 'name: "precompiled_sepolicy"' system/sepolicy/Android.bp 2>&1 || echo "Android.bp无precompiled_sepolicy"
           "$NINJA" -f out/soong/build.ninja -t targets all 2>/dev/null | grep -E 'precompiled_sepolicy|/sepolicy$' | head -20 || true
