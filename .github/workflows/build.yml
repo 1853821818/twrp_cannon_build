@@ -66,6 +66,12 @@ jobs:
           repo sync -j$(nproc) --force-sync -c --no-tags --no-clone-bundle -g pdk 2>&1 | tail -15
           # 显式同步TWRP核心仓库(vendor/twrp等不在pdk组，但编译必需)
           repo sync -j$(nproc) -c --no-tags             vendor/twrp bootable/recovery system/core system/vold system/security             system/libhidl system/update_engine system/extras external/icu             external/libxml2 external/sqlite external/python3 external/lptools             external/bash external/libncurses external/nano external/ntfs-3g             hardware/interfaces prebuilts/tools-lineage toolchain/pgo-profiles 2>&1 | tail -10
+          # TWRP manifest 可能把 bootable/recovery 同步成 AOSP 版，缺 TWRP 的 res-xhdpi 资源；
+          # 直接换成 TeamWin android-14 分支，保证 TWRP GUI 资源完整。
+          if [ ! -d bootable/recovery/res-xhdpi ]; then
+            rm -rf bootable/recovery
+            git clone -q --depth 1 -b android-14 https://github.com/TeamWin/android_bootable_recovery.git bootable/recovery 2>&1 | tail -3
+          fi
           # envsetup.sh:2117需要vendor/twrp/build/envsetup.sh(TeamWin的android_vendor_twrp仓库)
           # twrp-14 manifest不含此项目，从GitHub TeamWin仓库android-14分支clone
           [ -f vendor/twrp/build/envsetup.sh ] || \
