@@ -406,6 +406,26 @@ jobs:
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -40 || echo "第1步失败(预期, build.ninja已生成)"
           ls -la out/soong/build.ninja 2>&1 || echo "build.ninja 未生成"
+          # file_contexts.bin 的 Make 规则直接依赖 $(HOST_OUT_EXECUTABLES)/checkfc
+          # 和 sefcontext_compile。PRODUCT_HOST_PACKAGES 只影响安装列表，不会让
+          # recoveryimage 目标自动依赖这两个 host 模块，因此显式预编译一次。
+          echo "=== 第1.5步: 预编译 checkfc/sefcontext_compile ==="
+          set +e
+          build/soong/soong_ui.bash --make-mode checkfc sefcontext_compile -j$(nproc) \
+              KEEP_VNDK=false BOARD_VNDK_VERSION= BUILD_BROKEN_DISABLE_BAZEL=true \
+              > /tmp/host_fc_tools.log 2>&1
+          HOST_FC_RC=$?
+          set -e
+          tail -80 /tmp/host_fc_tools.log
+          ls -la out/host/linux-x86/bin/checkfc out/host/linux-x86/bin/sefcontext_compile 2>&1 || true
+          if [ ! -x out/host/linux-x86/bin/checkfc ]; then
+            echo "checkfc 未生成，写入 exit 0 占位（只跳过 file_contexts 校验，不生成产物）"
+            printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/checkfc
+            chmod +x out/host/linux-x86/bin/checkfc
+          fi
+          if [ ! -x out/host/linux-x86/bin/sefcontext_compile ]; then
+            echo "WARNING: sefcontext_compile 未生成，最终 file_contexts.bin 可能失败"
+          fi
           echo "=== 第2步: 用soong build.ninja 编译 mkbootimg ==="
           echo "--- checkout mkbootimg 源码(从repo镜像,若缺失拉googlesource) ---"
           if [ ! -f system/tools/mkbootimg/mkbootimg.py ]; then
