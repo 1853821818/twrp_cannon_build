@@ -499,10 +499,18 @@ jobs:
             touch "$LIBUTILS_DIR/libcutils.toc"
           fi
           echo "=== 第2.8步: 为所有被引用的 shared lib 补 .toc 占位 ==="
-          grep -oE 'out/target/product/cannon/obj/SHARED_LIBRARIES/[A-Za-z0-9_./+-]+\.toc' out/soong/build.ninja 2>/dev/null | sort -u | while read -r toc; do
+          set +e
+          for lib in libc++ libc libcutils liblog libbase libutils libhardware libselinux; do
+            toc_dir="out/target/product/cannon/obj/SHARED_LIBRARIES/${lib}_intermediates"
+            mkdir -p "$toc_dir"
+            [ -e "$toc_dir/${lib}.toc" ] || : > "$toc_dir/${lib}.toc"
+          done
+          grep -oE '[A-Za-z0-9_./+$@-]+\.toc' out/soong/build.ninja 2>/dev/null | sort -u > /tmp/all_tocs.txt || true
+          while IFS= read -r toc; do
             mkdir -p "$(dirname "$toc")"
             [ -e "$toc" ] || : > "$toc"
-          done
+          done < /tmp/all_tocs.txt
+          set -e
           echo "=== 第3步: 重跑make生成recovery.img ==="
           # 第3步前再次确保两个“无规则但被依赖”的产物存在，避免soong重新生成build.ninja后被清掉。
           mkdir -p out/target/product/cannon out/host/linux-x86/bin
