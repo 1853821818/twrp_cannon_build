@@ -264,7 +264,7 @@ jobs:
           mkdir -p out/target/product/cannon/recovery/root
           cp device/xiaomi/cannon/prebuilt/sepolicy out/target/product/cannon/recovery/root/sepolicy
           # recovery/root 还会依赖 plat_file_contexts 等SELinux上下文；精简manifest同样无生成规则。
-          for f in plat_file_contexts plat_property_contexts plat_service_contexts plat_hwservice_contexts plat_keystore2_key_contexts vendor_file_contexts vendor_property_contexts vndservice_contexts file_contexts; do
+          for f in plat_file_contexts product_file_contexts system_ext_file_contexts odm_file_contexts vendor_file_contexts plat_property_contexts product_property_contexts system_ext_property_contexts odm_property_contexts vendor_property_contexts plat_service_contexts product_service_contexts system_ext_service_contexts odm_service_contexts vendor_service_contexts plat_hwservice_contexts product_hwservice_contexts system_ext_hwservice_contexts odm_hwservice_contexts vendor_hwservice_contexts plat_keystore2_key_contexts product_keystore2_key_contexts system_ext_keystore2_key_contexts odm_keystore2_key_contexts vendor_keystore2_key_contexts vndservice_contexts file_contexts; do
             [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
           done
           # AOSP soong_build只生成build.ninja；make接口文件(make_vars/installs/Android/late)由build.ninja
@@ -381,7 +381,7 @@ jobs:
           mkdir -p out/target/product/cannon/recovery/root
           cp device/xiaomi/cannon/prebuilt/sepolicy out/target/product/cannon/recovery/root/sepolicy
           # recovery/root 还会依赖 plat_file_contexts 等SELinux上下文；精简manifest同样无生成规则。
-          for f in plat_file_contexts plat_property_contexts plat_service_contexts plat_hwservice_contexts plat_keystore2_key_contexts vendor_file_contexts vendor_property_contexts vndservice_contexts file_contexts; do
+          for f in plat_file_contexts product_file_contexts system_ext_file_contexts odm_file_contexts vendor_file_contexts plat_property_contexts product_property_contexts system_ext_property_contexts odm_property_contexts vendor_property_contexts plat_service_contexts product_service_contexts system_ext_service_contexts odm_service_contexts vendor_service_contexts plat_hwservice_contexts product_hwservice_contexts system_ext_hwservice_contexts odm_hwservice_contexts vendor_hwservice_contexts plat_keystore2_key_contexts product_keystore2_key_contexts system_ext_keystore2_key_contexts odm_keystore2_key_contexts vendor_keystore2_key_contexts vndservice_contexts file_contexts; do
             [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
           done
           set +e
