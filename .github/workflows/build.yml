@@ -259,6 +259,10 @@ jobs:
           # TeamWin 精简 manifest 没有生成规则，按本机 4.14.186 内核写入。
           mkdir -p out/soong/dexpreopt
           printf '%s\n' '4.14.186' > out/soong/dexpreopt/kernel_version_for_uffd_gc.txt
+          # recovery ramdisk 打包时还会依赖 recovery/root/sepolicy；精简 manifest 无规则生成，
+          # 直接复用设备树里已编译好的 A14 兼容策略。
+          mkdir -p out/target/product/cannon/recovery/root
+          cp device/xiaomi/cannon/prebuilt/sepolicy out/target/product/cannon/recovery/root/sepolicy
           # AOSP soong_build只生成build.ninja；make接口文件(make_vars/installs/Android/late)由build.ninja
           # 执行时生成，但kati的cleanspec/build先于runNinja需要它们。touch空文件保底让kati过，
           # recovery模块编译由runNinja执行build.ninja完成(soong库已在内)
@@ -370,6 +374,8 @@ jobs:
           # soong_ui 重建 build.ninja 时仍会要求该 dexpreopt 输入，第3步前再补一次。
           mkdir -p out/soong/dexpreopt
           printf '%s\n' '4.14.186' > out/soong/dexpreopt/kernel_version_for_uffd_gc.txt
+          mkdir -p out/target/product/cannon/recovery/root
+          cp device/xiaomi/cannon/prebuilt/sepolicy out/target/product/cannon/recovery/root/sepolicy
           set +e
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/twrp_step3.log 2>&1
