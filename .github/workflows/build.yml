@@ -100,6 +100,26 @@ jobs:
           # 它们覆盖AOSP版本，必须显式重新同步确保soong_ui.bash存在
           repo sync -j$(nproc) -c --no-tags build/make build/soong 2>&1 | tail -8
           ls -la build/soong/soong_ui.bash 2>&1 || echo "SOONG_UI_MISSING"
+          # TeamWin android-14.1 的 build/make/core/Makefile 缺少 AOSP 的
+          # merge-fc-files 规则，system/sepolicy 的 file_contexts.bin 会依赖一个
+          # 没有任何生成规则的 file_contexts.modules.tmp，ninja 直接报
+          # "missing and no known rule to make it"。这里补一个空文件目标；
+          # recovery 不依赖模块级 file_contexts，空文件即可让 concat 继续。
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('build/make/core/Makefile')
+          s = p.read_text()
+          if 'TWRP_FC_MODULES_TMP' not in s:
+              s += '''
+          # TWRP: TeamWin build/make lacks AOSP file_contexts.modules.tmp rule.
+          TWRP_FC_MODULES_TMP := $(call intermediates-dir-for,ETC,file_contexts.bin)/file_contexts.modules.tmp
+          $(TWRP_FC_MODULES_TMP):
+          \t@mkdir -p $(dir $@)
+          \t@touch $@
+          '''
+              p.write_text(s)
+          PY
+          grep -n 'TWRP_FC_MODULES_TMP' build/make/core/Makefile
           # 同步TWRP recovery必需的device/generic(通用设备支持)
           repo sync -j$(nproc) -c --no-tags device/generic 2>&1 | tail -5 || true
           # 检查磁盘占用
