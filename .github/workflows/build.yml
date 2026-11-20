@@ -397,6 +397,19 @@ jobs:
             fi
           fi
           ls -la /linux-x86/bin/llvm-readobj 2>&1 || true
+          # 精简 manifest 下 clang runtime 也按 /linux-x86 查找，补真实 builtins 归档。
+          for RT_NAME in libclang_rt.builtins-aarch64-android.a libclang_rt.builtins-arm-android.a; do
+            if [ ! -f "/linux-x86/lib/clang/lib/linux/$RT_NAME" ]; then
+              RT_FILE=$(find prebuilts/clang/host/linux-x86 -type f -name "$RT_NAME" 2>/dev/null | head -1)
+              if [ -n "$RT_FILE" ]; then
+                sudo mkdir -p /linux-x86/lib/clang/lib/linux
+                sudo ln -sf "$PWD/$RT_FILE" "/linux-x86/lib/clang/lib/linux/$RT_NAME"
+              else
+                echo "WARNING: 未找到 $RT_NAME"
+              fi
+            fi
+            ls -la "/linux-x86/lib/clang/lib/linux/$RT_NAME" 2>&1 || true
+          done
           # recovery.img 的 AVB 签名需要 avbtool 和 testkey；精简 manifest 未包含 external/avb。
           if [ ! -f external/avb/avbtool.py ]; then
             rm -rf external/avb
@@ -520,6 +533,19 @@ jobs:
           done
           set -e
           echo "=== 第3步: 重跑make生成recovery.img ==="
+          # build.ninja 重建后会清理 host bin，checkfc 必须再写一次占位。
+          printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/checkfc
+          chmod +x out/host/linux-x86/bin/checkfc
+          # 第3步前再确保 clang builtins 软链存在。
+          for RT_NAME in libclang_rt.builtins-aarch64-android.a libclang_rt.builtins-arm-android.a; do
+            if [ ! -f "/linux-x86/lib/clang/lib/linux/$RT_NAME" ]; then
+              RT_FILE=$(find prebuilts/clang/host/linux-x86 -type f -name "$RT_NAME" 2>/dev/null | head -1)
+              if [ -n "$RT_FILE" ]; then
+                sudo mkdir -p /linux-x86/lib/clang/lib/linux
+                sudo ln -sf "$PWD/$RT_FILE" "/linux-x86/lib/clang/lib/linux/$RT_NAME"
+              fi
+            fi
+          done
           # 第3步前再次确保两个“无规则但被依赖”的产物存在，避免soong重新生成build.ninja后被清掉。
           mkdir -p out/target/product/cannon out/host/linux-x86/bin
           if [ -f system/tools/mkbootimg/mkbootimg.py ]; then
