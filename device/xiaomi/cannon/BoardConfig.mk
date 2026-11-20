@@ -133,3 +133,15 @@ include $(DEVICE_PATH)/config/SHRPConfig.mk
 ifneq ($(wildcard vendor/twrp/config/BoardConfigSoong.mk),)
 include vendor/twrp/config/BoardConfigSoong.mk
 endif
+
+# 兜底：即使 vendor/twrp/config/BoardConfigSoong.mk 没被同步/没被包含，
+# 也直接向 Soong 的 twrpVarsPlugin 注册主题和亮度变量，避免 TW_THEME 为空。
+ifeq ($(SOONG_CONFIG_twrpVarsPlugin_TW_THEME),)
+SOONG_CONFIG_NAMESPACES += twrpVarsPlugin
+SOONG_CONFIG_twrpVarsPlugin += TW_THEME TARGET_SCREEN_WIDTH TARGET_SCREEN_HEIGHT TW_BRIGHTNESS_PATH TW_MAX_BRIGHTNESS
+SOONG_CONFIG_twrpVarsPlugin_TW_THEME := $(TW_THEME)
+SOONG_CONFIG_twrpVarsPlugin_TARGET_SCREEN_WIDTH := $(TARGET_SCREEN_WIDTH)
+SOONG_CONFIG_twrpVarsPlugin_TARGET_SCREEN_HEIGHT := $(TARGET_SCREEN_HEIGHT)
+SOONG_CONFIG_twrpVarsPlugin_TW_BRIGHTNESS_PATH := $(subst ",, $(TW_BRIGHTNESS_PATH))
+SOONG_CONFIG_twrpVarsPlugin_TW_MAX_BRIGHTNESS := $(TW_MAX_BRIGHTNESS)
+endif

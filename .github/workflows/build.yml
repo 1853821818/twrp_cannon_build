@@ -173,6 +173,8 @@ jobs:
           cd build/make/tools/rbcrun && GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun 2>&1 | tail -20
           ls -la ~/android/twrp/out/rbcrun 2>&1 || echo "RBCRUN_MISSING"
           cd ~/android/twrp
+          # 兜底：TW_THEME 没被 Soong 收到时，让 gui 默认 portrait_hdpi，避免 build.ninja 退出
+          python3 $GITHUB_WORKSPACE/scripts/patch_theme_default.py
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
