@@ -484,6 +484,20 @@ jobs:
           echo "使用ninja: $NINJA"
           "$NINJA" -f out/soong/build.ninja out/host/linux-x86/bin/mkbootimg 2>&1 | tail -25 || true
           ls -la out/host/linux-x86/bin/mkbootimg 2>&1 || echo "mkbootimg 编译失败"
+          echo "=== 第2.5步: 预编译 libcutils，补齐 libcutils.toc ==="
+          set +e
+          build/soong/soong_ui.bash --make-mode libcutils -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
+              BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/libcutils_build.log 2>&1
+          LIBUTILS_RC=$?
+          set -e
+          tail -60 /tmp/libcutils_build.log
+          LIBUTILS_DIR=out/target/product/cannon/obj/SHARED_LIBRARIES/libcutils_intermediates
+          ls -la "$LIBUTILS_DIR" 2>&1 || true
+          if [ ! -f "$LIBUTILS_DIR/libcutils.toc" ]; then
+            echo "libcutils.toc 未生成，创建占位以避免 ninja 缺规则"
+            mkdir -p "$LIBUTILS_DIR"
+            touch "$LIBUTILS_DIR/libcutils.toc"
+          fi
           echo "=== 第3步: 重跑make生成recovery.img ==="
           # 第3步前再次确保两个“无规则但被依赖”的产物存在，避免soong重新生成build.ninja后被清掉。
           mkdir -p out/target/product/cannon out/host/linux-x86/bin
