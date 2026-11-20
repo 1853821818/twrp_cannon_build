@@ -255,6 +255,10 @@ jobs:
           # 但kati的cleanspec/build在runNinja前需要它们存在。touch空文件保底让kati过，
           # 若recovery模块缺失会在build阶段暴露(soong库已在build.ninja里)
           mkdir -p out/soong
+          # Android 14 dexpreopt 会读取该内核版本文件作为 build.prop 的输入；
+          # TeamWin 精简 manifest 没有生成规则，按本机 4.14.186 内核写入。
+          mkdir -p out/soong/dexpreopt
+          printf '%s\n' '4.14.186' > out/soong/dexpreopt/kernel_version_for_uffd_gc.txt
           # AOSP soong_build只生成build.ninja；make接口文件(make_vars/installs/Android/late)由build.ninja
           # 执行时生成，但kati的cleanspec/build先于runNinja需要它们。touch空文件保底让kati过，
           # recovery模块编译由runNinja执行build.ninja完成(soong库已在内)
@@ -363,6 +367,9 @@ jobs:
           grep -n 'name: "precompiled_sepolicy"' system/sepolicy/Android.bp 2>&1 || echo "Android.bp无precompiled_sepolicy"
           "$NINJA" -f out/soong/build.ninja -t targets all 2>/dev/null | grep -E 'precompiled_sepolicy|/sepolicy$' | head -20 || true
           echo "=== out/soong before build ==="; ls -la out/soong/ 2>&1 | head -40
+          # soong_ui 重建 build.ninja 时仍会要求该 dexpreopt 输入，第3步前再补一次。
+          mkdir -p out/soong/dexpreopt
+          printf '%s\n' '4.14.186' > out/soong/dexpreopt/kernel_version_for_uffd_gc.txt
           set +e
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/twrp_step3.log 2>&1
