@@ -315,10 +315,11 @@ jobs:
             "external/avb:platform/external/avb" \
             "external/scrypt:platform/external/scrypt" \
             "external/sqlite:platform/external/sqlite" \
-            "prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8:platform/prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8"; do
+            "prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8:platform/prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8" \
+            "hardware/interfaces:platform/hardware/interfaces"; do
             path="${spec%%:*}"
             name="${spec#*:}"
-            if [ ! -d "$path" ] || [ -z "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ] || { [ "$path" = "prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8" ] && [ -z "$(find "$path" -name 'libwinpthread*' 2>/dev/null | head -1)" ]; }; then
+            if [ ! -d "$path" ] || [ -z "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ] || { [ "$path" = "prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8" ] && [ -z "$(find "$path" -name 'libwinpthread*' 2>/dev/null | head -1)" ]; } || { [ "$path" = "hardware/interfaces" ] && [ ! -d "$path/health/2.0" ]; }; then
               echo "CORE_REPO_MISSING $path -> clone $name"
               rm -rf "$path"
               mkdir -p "$(dirname "$path")"
