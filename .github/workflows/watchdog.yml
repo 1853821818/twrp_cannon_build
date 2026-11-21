@@ -23,6 +23,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          REPO_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
           RUNS=$(gh run list --repo "$REPO" --workflow build.yml --limit 30 \
@@ -58,7 +59,7 @@ jobs:
           )
 
           if [ -z "$ISSUE_NUM" ]; then
-            gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY" >/dev/null
+            gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY" --assignee "$REPO_OWNER" >/dev/null
             echo "已创建监控 issue，当前状态: $STATE"
             exit 0
           fi
