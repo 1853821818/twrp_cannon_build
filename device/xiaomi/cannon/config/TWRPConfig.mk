@@ -23,6 +23,8 @@ TW_SCREEN_BLANK_ON_BOOT := true
 TW_INCLUDE_FUSE_EXFAT := true
 # 精简 manifest 下 external/nano / external/libncurses 未同步，nano 仅为可选编辑器，排除
 TW_EXCLUDE_NANO := true
+# 精简 manifest 下 tzdata 未生成，时区数据仅影响显示，排除
+TW_EXCLUDE_TZDATA := true
 
 # For debugging Purposes
 TWRP_INCLUDE_LOGCAT := true
