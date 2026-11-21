@@ -188,33 +188,6 @@ jobs:
           ls -ld system/sepolicy external/selinux 2>&1
           test -f system/sepolicy/Android.mk
           test -d external/selinux/libselinux
-          # repo sync 对部分 AOSP 仓库可能静默漏拉（日志里仍显示 successfully）。
-          # 这些仓库必须在 soong 生成 build.ninja 前存在，否则 libinit/libvold/libavb 等模块
-          # 不会注册，后面只会报 "missing and no known rule"。
-          for spec in \
-            "system/core:platform/system/core" \
-            "system/vold:platform/system/vold" \
-            "system/libbase:platform/system/libbase" \
-            "system/libutils:platform/system/libutils" \
-            "system/logging:platform/system/logging" \
-            "system/tools/mkbootimg:platform/system/tools/mkbootimg" \
-            "external/avb:platform/external/avb" \
-            "external/scrypt:platform/external/scrypt"; do
-            path="${spec%%:*}"
-            name="${spec#*:}"
-            if [ ! -d "$path" ] || [ -z "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
-              echo "CORE_REPO_MISSING $path -> clone $name"
-              rm -rf "$path"
-              mkdir -p "$(dirname "$path")"
-              git clone --depth 1 -b android-14.0.0_r17 "https://android.googlesource.com/$name" "$path" 2>&1 | tail -3 || \
-              git clone --depth 1 -b android-14.0.0_r17 "https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/$name.git" "$path" 2>&1 | tail -3 || true
-            fi
-            if [ -n "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
-              echo "CORE_REPO_OK $path"
-            else
-              echo "CORE_REPO_STILL_MISSING $path"
-            fi
-          done
           echo "SYNC_DONE" 
 
       - name: Copy device tree
@@ -464,6 +437,36 @@ jobs:
             mkdir -p bootable/recovery/res-xhdpi
             cp -a device/xiaomi/cannon/prebuilt/res-xhdpi/. bootable/recovery/res-xhdpi/
           fi
+          # repo sync 可能静默漏拉或在后续 sync 中覆盖手工目录；必须在 soong 扫描前
+          # 再确保 system/core / system/vold 等模块源码存在，否则 libinit/libvold 不会注册。
+          for spec in \
+            "system/core:platform/system/core" \
+            "system/vold:platform/system/vold" \
+            "system/libbase:platform/system/libbase" \
+            "system/logging:platform/system/logging" \
+            "system/tools/mkbootimg:platform/system/tools/mkbootimg" \
+            "external/avb:platform/external/avb" \
+            "external/scrypt:platform/external/scrypt"; do
+            path="${spec%%:*}"
+            name="${spec#*:}"
+            if [ ! -d "$path" ] || [ -z "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
+              echo "CORE_REPO_MISSING $path -> clone $name"
+              rm -rf "$path"
+              mkdir -p "$(dirname "$path")"
+              git clone --depth 1 -b android-14.0.0_r17 "https://android.googlesource.com/$name" "$path" 2>&1 | tail -3 || \
+              git clone --depth 1 -b android-14.0.0_r17 "https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/$name.git" "$path" 2>&1 | tail -3 || true
+            fi
+            if [ -n "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
+              echo "CORE_REPO_OK $path"
+            else
+              echo "CORE_REPO_STILL_MISSING $path"
+            fi
+          done
+          echo "=== CORE_DEBUG ==="
+          ls -ld system/core system/core/libcutils/Android.bp system/core/init/Android.bp 2>&1 || true
+          grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
+          grep -n 'name: "libinit"' system/core/init/Android.bp 2>&1 | head -2 || true
+          du -sh system/core 2>&1 || true
           # Android.mk空→soong host工具在make侧无规则。策略:
           # 1) 先跑一次make-mode: soong bootstrap生成build.ninja(预期在mkbootimg失败)
           # 2) 用soong build.ninja直接编译host工具mkbootimg
