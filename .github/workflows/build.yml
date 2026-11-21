@@ -528,7 +528,7 @@ jobs:
           set -e
           # 2.8b: 不再逐个猜库名，直接从 build.ninja 提取全部 shared lib .toc 目标建占位
           if [ -f out/soong/build.ninja ]; then
-            grep -oE 'out/target/product/cannon/(obj|obj_arm)/SHARED_LIBRARIES/[A-Za-z0-9._+@-]+_intermediates/[A-Za-z0-9._+@-]+\.toc' out/soong/build.ninja 2>/dev/null | sort -u | while read -r toc_file; do
+            (grep -oE 'out/target/product/cannon/(obj|obj_arm)/SHARED_LIBRARIES/[A-Za-z0-9._+@-]+_intermediates/[A-Za-z0-9._+@-]+\.toc' out/soong/build.ninja 2>/dev/null || true) | sort -u | while read -r toc_file; do
               mkdir -p "$(dirname "$toc_file")"
               [ -e "$toc_file" ] || : > "$toc_file"
             done
@@ -547,6 +547,16 @@ jobs:
           # build.ninja 重建后会清理 host bin，checkfc 必须再写一次占位。
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/checkfc
           chmod +x out/host/linux-x86/bin/checkfc
+          # soong_ui 启动时会清 out/host/linux-x86/bin；后台守护持续补 checkfc 占位。
+          ( while true; do
+              if [ ! -x out/host/linux-x86/bin/checkfc ]; then
+                mkdir -p out/host/linux-x86/bin
+                printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/checkfc
+                chmod +x out/host/linux-x86/bin/checkfc
+              fi
+              sleep 1
+            done ) &
+          CHECKFC_WATCH_PID=$!
           # 第3步前再确保 clang builtins 软链存在。
           for RT_NAME in libclang_rt.builtins-aarch64-android.a libclang_rt.builtins-arm-android.a; do
             if [ ! -f "/linux-x86/lib/clang/lib/linux/$RT_NAME" ]; then
