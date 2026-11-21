@@ -478,35 +478,26 @@ jobs:
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -40 || echo "第1步失败(预期, build.ninja已生成)"
           ls -la out/soong/build.ninja 2>&1 || echo "build.ninja 未生成"
-          # 第1.2步：build.ninja 已生成，用 ninja 生成真实的 Soong make 接口。
-          # 之前这里只有空的 Android-twrp_cannon.mk，kati 看不到 Soong 模块，
-          # 所以 libcutils/libinit 等 target unknown、libinit.a 没有生成规则。
-          echo "=== 第1.2步: 生成 Soong make 接口 ==="
-          SOONG_NINJA=prebuilts/build-tools/linux-x86/bin/ninja
-          if [ ! -x "$SOONG_NINJA" ]; then SOONG_NINJA=$(command -v ninja || true); fi
-          echo "SOONG_INTERFACE_NINJA=${SOONG_NINJA:-missing}"
-          if [ -x "$SOONG_NINJA" ] && [ -f out/soong/build.ninja ]; then
-            "$SOONG_NINJA" -f out/soong/build.ninja -t targets all 2>/dev/null \
-              | grep -E 'out/soong/(Android|make_vars|installs|late)-' | head -20 || true
-            for f in make_vars installs Android late; do
-              t="out/soong/$f-twrp_cannon.mk"
-              if [ -s "$t" ]; then
-                echo "SOONG_INTERFACE_EXISTS $t $(wc -c < "$t")"
-                continue
-              fi
-              rm -f "$t"
-              "$SOONG_NINJA" -f out/soong/build.ninja "$t" 2>&1 | tail -3 \
-                || echo "SOONG_INTERFACE_GEN_FAILED $t"
-              if [ -s "$t" ]; then
-                echo "SOONG_INTERFACE_OK $t $(wc -c < "$t")"
-              else
-                echo "SOONG_INTERFACE_EMPTY_FALLBACK $t"
-                touch "$t"
-              fi
-            done
-          else
-            echo "SOONG_INTERFACE_NO_NINJA_OR_BUILD_NINJA"
-          fi
+          # 第1.2步：TeamWin build/soong 实际把 legacy Make 规则写到无 product 后缀的
+          # out/soong/Android.mk / make_vars.mk / installs.mk / late.mk（日志里这些文件
+          # 是 70MB/187KB/9MB/58MB，而 *-twrp_cannon.mk 被 touch 成 0 字节）。
+          # build/make 读取的是 *-twrp_cannon.mk，所以这里复制真实文件过去。
+          echo "=== 第1.2步: 复制 Soong make 接口 ==="
+          for pair in "Android.mk:Android" "make_vars.mk:make_vars" "installs.mk:installs" "late.mk:late"; do
+            src="${pair%%:*}"
+            dst="${pair##*:}-twrp_cannon.mk"
+            if [ -s "out/soong/$src" ]; then
+              cp -f "out/soong/$src" "out/soong/$dst"
+              echo "SOONG_INTERFACE_COPY $src -> $dst $(wc -c < "out/soong/$dst")"
+            elif [ -s "out/soong/$dst" ]; then
+              echo "SOONG_INTERFACE_EXISTS $dst $(wc -c < "out/soong/$dst")"
+            else
+              echo "SOONG_INTERFACE_MISSING $dst"
+            fi
+          done
+          echo "--- Soong Android.mk 关键模块 ---"
+          grep -nE 'LOCAL_MODULE := (libinit|libcutils|libvold|libavb|libtwrpinstall|libminadbd_services)' \
+            out/soong/Android.mk 2>/dev/null | head -12 || true
           # file_contexts.bin 的 Make 规则直接依赖 $(HOST_OUT_EXECUTABLES)/checkfc
           # 和 sefcontext_compile。PRODUCT_HOST_PACKAGES 只影响安装列表，不会让
           # recoveryimage 目标自动依赖这两个 host 模块，因此显式预编译一次。
