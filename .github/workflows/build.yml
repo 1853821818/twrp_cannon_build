@@ -311,7 +311,8 @@ jobs:
             "system/logging:platform/system/logging" \
             "system/tools/mkbootimg:platform/system/tools/mkbootimg" \
             "external/avb:platform/external/avb" \
-            "external/scrypt:platform/external/scrypt"; do
+            "external/scrypt:platform/external/scrypt" \
+            "external/sqlite:platform/external/sqlite"; do
             path="${spec%%:*}"
             name="${spec#*:}"
             if [ ! -d "$path" ] || [ -z "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
@@ -601,6 +602,10 @@ jobs:
             done
           done
           set -e
+          # relink_binaries 需要 vendor/etc/init 下的 rc；精简树没有 vendor，先建占位避免 ninja 报无生成规则。
+          mkdir -p out/target/product/cannon/vendor/etc/init
+          [ -e out/target/product/cannon/vendor/etc/init/android.hardware.health@2.0-service.rc ] || \
+            : > out/target/product/cannon/vendor/etc/init/android.hardware.health@2.0-service.rc
           echo "=== 第3步: 重跑make生成recovery.img ==="
           # build.ninja 重建后会清理 host bin，checkfc 必须再写一次占位。
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/checkfc
