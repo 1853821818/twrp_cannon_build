@@ -1,0 +1,97 @@
+name: TWRP Build Watchdog
+
+on:
+  schedule:
+    # GitHub Actions 最短 5 分钟；实际触发可能因平台排队略有延迟
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: twrp-build-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check latest cannon-decrypt build and update issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          RUNS=$(gh run list --repo "$REPO" --workflow build.yml --limit 30 \
+            --json databaseId,status,conclusion,createdAt,updatedAt,headSha,headBranch,name,url)
+          RUN=$(printf '%s' "$RUNS" | jq -c '[.[] | select(.headBranch=="cannon-decrypt" and .name=="Build TWRP for cannon")][0]')
+          if [ -z "$RUN" ] || [ "$RUN" = "null" ]; then
+            echo "没有找到 cannon-decrypt 的构建记录"
+            exit 0
+          fi
+
+          RUN_ID=$(jq -r .databaseId <<<"$RUN")
+          STATUS=$(jq -r .status <<<"$RUN")
+          CONCLUSION=$(jq -r '.conclusion // ""' <<<"$RUN")
+          HEAD=$(jq -r .headSha <<<"$RUN" | cut -c1-8)
+          UPDATED=$(jq -r .updatedAt <<<"$RUN")
+          URL=$(jq -r .url <<<"$RUN")
+          STATE="${RUN_ID}/${STATUS}/${CONCLUSION}"
+
+          TITLE="[TWRP Watch] cannon-decrypt build status"
+          ISSUE_NUM=$(gh issue list --repo "$REPO" --state open --limit 50 --json number,title \
+            | jq -r --arg t "$TITLE" '.[] | select(.title==$t) | .number' | head -1)
+
+          BODY=$(cat <<EOF
+          自动监控 \`cannon-decrypt\` 分支的 \`Build TWRP for cannon\`，每 5 分钟检查一次。
+
+          - 最新 run: [#${RUN_ID}](${URL})
+          - 状态: \`${STATUS}\` / \`${CONCLUSION:-进行中}\`
+          - 提交: \`${HEAD}\`
+          - 更新时间: \`${UPDATED}\`
+
+          <!-- twrp-watch: ${STATE} -->
+          EOF
+          )
+
+          if [ -z "$ISSUE_NUM" ]; then
+            gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY" >/dev/null
+            echo "已创建监控 issue，当前状态: $STATE"
+            exit 0
+          fi
+
+          OLD_BODY=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json body --jq .body)
+          OLD_MARKER=$(printf '%s' "$OLD_BODY" | grep -o '<!-- twrp-watch: [^>]* -->' | tail -1 || true)
+          NEW_MARKER="<!-- twrp-watch: ${STATE} -->"
+
+          if [ "$OLD_MARKER" = "$NEW_MARKER" ]; then
+            echo "状态未变化，跳过通知: $STATE"
+            exit 0
+          fi
+
+          DETAIL=""
+          if [ "$STATUS" = "completed" ]; then
+            if [ "$CONCLUSION" = "success" ]; then
+              DETAIL="构建成功。artifact 下载页: ${URL}"
+            else
+              DETAIL=$(gh run view "$RUN_ID" --repo "$REPO" --log-failed 2>/dev/null | tail -30 || true)
+            fi
+          fi
+
+          COMMENT=$(cat <<EOF
+          状态变化: \`${STATUS}\` / \`${CONCLUSION:-进行中}\`
+
+          - run: [#${RUN_ID}](${URL})
+          - 提交: \`${HEAD}\`
+          - 更新时间: \`${UPDATED}\`
+
+          ${DETAIL}
+          EOF
+          )
+
+          gh issue comment "$ISSUE_NUM" --repo "$REPO" --body "$COMMENT" >/dev/null
+          gh issue edit "$ISSUE_NUM" --repo "$REPO" --body "$BODY" >/dev/null
+          echo "已更新 issue，状态: $STATE"
