@@ -538,7 +538,7 @@ jobs:
           echo "=== 第2.9步: 补齐 libmtdutils 依赖的静态库占位（obj + obj_arm） ==="
           set +e
           for variant in obj obj_arm; do
-            for lib in libc++demangle libc++abi libunwind; do
+            for lib in libc++demangle libc++abi libunwind libvold; do
               a_dir="out/target/product/cannon/${variant}/STATIC_LIBRARIES/${lib}_intermediates"
               mkdir -p "$a_dir"
               [ -s "$a_dir/${lib}.a" ] || ar rcs "$a_dir/${lib}.a"
