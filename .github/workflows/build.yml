@@ -378,6 +378,15 @@ jobs:
           else
             echo "HWSM_RC_MISSING system/hwservicemanager/hwservicemanager.rc"
           fi
+          # relink_binaries 还会依赖 hwservicemanager 的 vintf manifest；
+          # 精简 manifest 下它同样没有 install 规则，直接复制真实 XML 补位。
+          if [ -f system/hwservicemanager/hwservicemanager.xml ]; then
+            mkdir -p out/target/product/cannon/system/etc/vintf/manifest
+            cp system/hwservicemanager/hwservicemanager.xml out/target/product/cannon/system/etc/vintf/manifest/hwservicemanager.xml
+            echo "HWSM_XML_COPY $(wc -c < out/target/product/cannon/system/etc/vintf/manifest/hwservicemanager.xml)"
+          else
+            echo "HWSM_XML_MISSING system/hwservicemanager/hwservicemanager.xml"
+          fi
           # AOSP soong_build只生成build.ninja；make接口文件由build.ninja执行时生成。
           # 此时 build.ninja 还没生成，先 touch 空文件让第1步 kati 过；真实接口
           # 在第1步生成 build.ninja 后再用 ninja 生成，见下面“第1.2步”。
@@ -713,11 +722,16 @@ jobs:
           for f in plat_file_contexts product_file_contexts system_ext_file_contexts odm_file_contexts vendor_file_contexts plat_property_contexts product_property_contexts system_ext_property_contexts odm_property_contexts vendor_property_contexts plat_service_contexts product_service_contexts system_ext_service_contexts odm_service_contexts vendor_service_contexts plat_hwservice_contexts product_hwservice_contexts system_ext_hwservice_contexts odm_hwservice_contexts vendor_hwservice_contexts plat_keystore2_key_contexts product_keystore2_key_contexts system_ext_keystore2_key_contexts odm_keystore2_key_contexts vendor_keystore2_key_contexts vndservice_contexts file_contexts; do
             [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
           done
-          # 第3步前再补一次 hwservicemanager.rc，防止 soong_ui 重建接口时清掉。
+          # 第3步前再补一次 hwservicemanager.rc / xml，防止 soong_ui 重建接口时清掉。
           if [ -f system/hwservicemanager/hwservicemanager.rc ]; then
             mkdir -p out/target/product/cannon/system/etc/init
             cp system/hwservicemanager/hwservicemanager.rc out/target/product/cannon/system/etc/init/hwservicemanager.rc
             echo "HWSM_RC_PRE_STEP3 $(wc -c < out/target/product/cannon/system/etc/init/hwservicemanager.rc)"
+          fi
+          if [ -f system/hwservicemanager/hwservicemanager.xml ]; then
+            mkdir -p out/target/product/cannon/system/etc/vintf/manifest
+            cp system/hwservicemanager/hwservicemanager.xml out/target/product/cannon/system/etc/vintf/manifest/hwservicemanager.xml
+            echo "HWSM_XML_PRE_STEP3 $(wc -c < out/target/product/cannon/system/etc/vintf/manifest/hwservicemanager.xml)"
           fi
           set +e
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
