@@ -313,15 +313,22 @@ jobs:
             "system/tools/mkbootimg:platform/system/tools/mkbootimg" \
             "external/avb:platform/external/avb" \
             "external/scrypt:platform/external/scrypt" \
-            "external/sqlite:platform/external/sqlite"; do
+            "external/sqlite:platform/external/sqlite" \
+            "prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8:platform/prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8"; do
             path="${spec%%:*}"
             name="${spec#*:}"
-            if [ ! -d "$path" ] || [ -z "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
+            if [ ! -d "$path" ] || [ -z "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ] || { [ "$path" = "prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8" ] && [ -z "$(find "$path" -name 'libwinpthread*' 2>/dev/null | head -1)" ]; }; then
               echo "CORE_REPO_MISSING $path -> clone $name"
               rm -rf "$path"
               mkdir -p "$(dirname "$path")"
-              git clone --depth 1 -b android-14.0.0_r17 "https://android.googlesource.com/$name" "$path" 2>&1 | tail -3 || \
-              git clone --depth 1 -b android-14.0.0_r17 "https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/$name.git" "$path" 2>&1 | tail -3 || true
+              if ! git clone --depth 1 -b android-14.0.0_r17 "https://android.googlesource.com/$name" "$path" > /tmp/core_clone.log 2>&1; then
+                rm -rf "$path"
+                if ! git clone --depth 1 -b android-14.0.0_r17 "https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/$name.git" "$path" > /tmp/core_clone.log 2>&1; then
+                  rm -rf "$path"
+                  git clone --depth 1 "https://android.googlesource.com/$name" "$path" > /tmp/core_clone.log 2>&1 || true
+                fi
+              fi
+              tail -3 /tmp/core_clone.log
             fi
             if [ -n "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
               echo "CORE_REPO_OK $path"
@@ -336,17 +343,11 @@ jobs:
           du -sh system/core 2>&1 || true
           # 清掉可能由旧 soong/finder 生成的路径缓存，保证下一次扫描包含新克隆目录。
           rm -rf out/soong/.module_paths out/soong/.bpglob out/soong/.bpglob_intermediates
-          # 关闭 Windows host 交叉编译：TWRP 只需要 Linux host 工具。
-          # AOSP 默认 HOST_CROSS_OS=windows，会强制构建 libbase.dll 并依赖
-          # 精简 manifest 未同步的 libwinpthread；BUILD_HOST_static 会按
-          # build/make/core/envsetup.mk 的逻辑关闭 Windows cross-build。
-          export BUILD_HOST_static=true
           build_build_var_cache
           # 关键:lunch必须在当前shell直接运行(不能接管道|tail,否则在子shell执行,TARGET_PRODUCT等
           # 环境变量设置会丢失,soong_ui默认aosp_arm导致cleanspec找make_vars-aosp_arm.mk缺失)
           lunch twrp_cannon-ap1a-eng >/dev/null 2>&1
-          unset HOST_CROSS_OS
-          echo "TARGET_PRODUCT=$TARGET_PRODUCT TARGET_BUILD_VARIANT=$TARGET_BUILD_VARIANT HOST_CROSS_OS=${HOST_CROSS_OS:-unset} BUILD_HOST_static=${BUILD_HOST_static:-unset}"
+          echo "TARGET_PRODUCT=$TARGET_PRODUCT TARGET_BUILD_VARIANT=$TARGET_BUILD_VARIANT"
           # TWRP recovery不编译vendor，无需VNDK。make命令行强制KEEP_VNDK=false+BOARD_VNDK_VERSION空
           # 命令行优先级最高，覆盖makefile里的设置，避免board_config检查VNDK 34 prebuilt
           # pipefail防止make失败被tail吞掉退出码导致误报success；再显式校验recovery.img生成
