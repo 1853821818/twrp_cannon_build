@@ -640,6 +640,30 @@ jobs:
               BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/twrp_step3.log 2>&1
           STEP3_RC=$?
           tail -250 /tmp/twrp_step3.log
+          # 精简 manifest 会连续缺少 product 侧的 .toc / 静态库；从失败日志提取
+          # 目标路径，补空占位后原地重跑，避免每缺一个文件就耗一轮完整构建。
+          STEP3_ATTEMPT=0
+          while [ $STEP3_RC -ne 0 ] && [ $STEP3_ATTEMPT -lt 6 ]; do
+            MISSING_LIST=$(grep 'missing and no known rule' /tmp/twrp_step3.log 2>/dev/null \
+              | grep -oE "out/target/product/cannon/(obj|obj_arm)/(SHARED_LIBRARIES|STATIC_LIBRARIES)/[^']+\.(a|toc)" \
+              | sort -u)
+            [ -n "$MISSING_LIST" ] || break
+            echo "=== 第3步自动补缺(第$((STEP3_ATTEMPT+1))次) ==="
+            while IFS= read -r missing_file; do
+              [ -n "$missing_file" ] || continue
+              mkdir -p "$(dirname "$missing_file")"
+              case "$missing_file" in
+                *.a) [ -s "$missing_file" ] || ar rcs "$missing_file" ;;
+                *.toc) [ -e "$missing_file" ] || : > "$missing_file" ;;
+              esac
+              echo "补占位: $missing_file"
+            done <<< "$MISSING_LIST"
+            STEP3_ATTEMPT=$((STEP3_ATTEMPT+1))
+            build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
+                BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/twrp_step3.log 2>&1
+            STEP3_RC=$?
+            tail -80 /tmp/twrp_step3.log
+          done
           if [ $STEP3_RC -ne 0 ]; then
             if grep -q 'precompiled_sepolicy.*missing and no known rule' /tmp/twrp_step3.log; then
               echo "=== 第4步: sepolicy 仍无规则，临时移除 recovery 对 recovery_sepolicy 的依赖 ==="
