@@ -338,6 +338,14 @@ jobs:
               echo "CORE_REPO_STILL_MISSING $path"
             fi
           done
+          # hardware/interfaces 的 APEX 包装会把 libbase 同时打进 apex10000 和普通变体，
+          # 触发 Soong "apex file libbase.so is provided by two different files"。
+          # TWRP 不需要这些 HAL APEX，移除所有 apex 目录，避免重复打包。
+          if [ -d hardware/interfaces ]; then
+            APEX_DIRS=$(find hardware/interfaces -type d -name apex 2>/dev/null | wc -l)
+            find hardware/interfaces -type d -name apex -prune -exec rm -rf {} + 2>/dev/null || true
+            echo "HI_APEX_REMOVED dirs=$APEX_DIRS"
+          fi
           echo "=== CORE_DEBUG ==="
           ls -ld system/core system/core/libcutils/Android.bp system/core/init/Android.bp 2>&1 || true
           grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
