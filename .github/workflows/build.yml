@@ -369,6 +369,15 @@ jobs:
           for f in plat_file_contexts product_file_contexts system_ext_file_contexts odm_file_contexts vendor_file_contexts plat_property_contexts product_property_contexts system_ext_property_contexts odm_property_contexts vendor_property_contexts plat_service_contexts product_service_contexts system_ext_service_contexts odm_service_contexts vendor_service_contexts plat_hwservice_contexts product_hwservice_contexts system_ext_hwservice_contexts odm_hwservice_contexts vendor_hwservice_contexts plat_keystore2_key_contexts product_keystore2_key_contexts system_ext_keystore2_key_contexts odm_keystore2_key_contexts vendor_keystore2_key_contexts vndservice_contexts file_contexts; do
             [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
           done
+          # TWRP 的 relink_binaries 依赖 system/etc/init/hwservicemanager.rc；
+          # 精简 manifest 下该 rc 没有进入 install 规则，直接从源码复制真实 rc 补位。
+          if [ -f system/hwservicemanager/hwservicemanager.rc ]; then
+            mkdir -p out/target/product/cannon/system/etc/init
+            cp system/hwservicemanager/hwservicemanager.rc out/target/product/cannon/system/etc/init/hwservicemanager.rc
+            echo "HWSM_RC_COPY $(wc -c < out/target/product/cannon/system/etc/init/hwservicemanager.rc)"
+          else
+            echo "HWSM_RC_MISSING system/hwservicemanager/hwservicemanager.rc"
+          fi
           # AOSP soong_build只生成build.ninja；make接口文件由build.ninja执行时生成。
           # 此时 build.ninja 还没生成，先 touch 空文件让第1步 kati 过；真实接口
           # 在第1步生成 build.ninja 后再用 ninja 生成，见下面“第1.2步”。
@@ -704,6 +713,12 @@ jobs:
           for f in plat_file_contexts product_file_contexts system_ext_file_contexts odm_file_contexts vendor_file_contexts plat_property_contexts product_property_contexts system_ext_property_contexts odm_property_contexts vendor_property_contexts plat_service_contexts product_service_contexts system_ext_service_contexts odm_service_contexts vendor_service_contexts plat_hwservice_contexts product_hwservice_contexts system_ext_hwservice_contexts odm_hwservice_contexts vendor_hwservice_contexts plat_keystore2_key_contexts product_keystore2_key_contexts system_ext_keystore2_key_contexts odm_keystore2_key_contexts vendor_keystore2_key_contexts vndservice_contexts file_contexts; do
             [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
           done
+          # 第3步前再补一次 hwservicemanager.rc，防止 soong_ui 重建接口时清掉。
+          if [ -f system/hwservicemanager/hwservicemanager.rc ]; then
+            mkdir -p out/target/product/cannon/system/etc/init
+            cp system/hwservicemanager/hwservicemanager.rc out/target/product/cannon/system/etc/init/hwservicemanager.rc
+            echo "HWSM_RC_PRE_STEP3 $(wc -c < out/target/product/cannon/system/etc/init/hwservicemanager.rc)"
+          fi
           set +e
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/twrp_step3.log 2>&1
