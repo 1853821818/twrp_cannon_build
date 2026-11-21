@@ -310,6 +310,7 @@ jobs:
             "system/libbase:platform/system/libbase" \
             "system/hwservicemanager:platform/system/hwservicemanager" \
             "system/logging:platform/system/logging" \
+            "system/libhidl:platform/system/libhidl" \
             "system/tools/mkbootimg:platform/system/tools/mkbootimg" \
             "external/avb:platform/external/avb" \
             "external/scrypt:platform/external/scrypt" \
