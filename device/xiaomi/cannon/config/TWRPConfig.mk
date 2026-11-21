@@ -21,6 +21,8 @@ TW_MAX_BRIGHTNESS := 2047
 TW_DEFAULT_BRIGHTNESS := 900
 TW_SCREEN_BLANK_ON_BOOT := true
 TW_INCLUDE_FUSE_EXFAT := true
+# 精简 manifest 下 external/nano / external/libncurses 未同步，nano 仅为可选编辑器，排除
+TW_EXCLUDE_NANO := true
 
 # For debugging Purposes
 TWRP_INCLUDE_LOGCAT := true
