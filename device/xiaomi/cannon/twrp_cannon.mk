@@ -52,6 +52,20 @@ PRODUCT_GMS_CLIENTID_BASE := android-$(PRODUCT_MANUFCATURER)
 # 本机 vendor keymaster 是 4.1；TW_FORCE_KEYMASTER_VER 依赖该 prop
 PRODUCT_PROPERTY_OVERRIDES += keymaster_ver=4.1
 
+# TWRP 的 relink_binaries 只把二进制列进 LOCAL_REQUIRED_MODULES，不会连带
+# 安装 Soong 模块的 init_rc / vintf_fragments；精简 manifest 下这些 rc/xml
+# 没有生成规则。显式加入产品包，让模块连同 rc/xml 一起安装。
+PRODUCT_PACKAGES += \
+    hwservicemanager \
+    servicemanager \
+    vndservicemanager \
+    logd \
+    keystore \
+    charger \
+    ueventd \
+    watchdogd \
+    minadbd
+
 PRODUCT_BUILD_PROP_OVERRIDES += \
     PRIVATE_BUILD_DESC="cannon-user 12 SP1A.210812.016 V14.0.6.0.SJECNXM release-keys"
 
