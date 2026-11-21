@@ -357,36 +357,10 @@ jobs:
           for f in plat_file_contexts product_file_contexts system_ext_file_contexts odm_file_contexts vendor_file_contexts plat_property_contexts product_property_contexts system_ext_property_contexts odm_property_contexts vendor_property_contexts plat_service_contexts product_service_contexts system_ext_service_contexts odm_service_contexts vendor_service_contexts plat_hwservice_contexts product_hwservice_contexts system_ext_hwservice_contexts odm_hwservice_contexts vendor_hwservice_contexts plat_keystore2_key_contexts product_keystore2_key_contexts system_ext_keystore2_key_contexts odm_keystore2_key_contexts vendor_keystore2_key_contexts vndservice_contexts file_contexts; do
             [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
           done
-          # AOSP soong_build只生成build.ninja；make接口文件(make_vars/installs/Android/late)由build.ninja
-          # 执行时生成。此前直接 touch 空文件会让 kati 看不到 Soong 模块，导致
-          # libcutils/libinit 等 target unknown 或 obj/STATIC_LIBRARIES/libinit.a 无规则。
-          # 这里先用 ninja 生成真实接口文件，只有生成失败才 touch 空文件保底。
-          NINJA_EARLY=prebuilts/build-tools/linux-x86/bin/ninja
-          if [ ! -x "$NINJA_EARLY" ]; then NINJA_EARLY=$(command -v ninja || true); fi
-          echo "SOONG_INTERFACE_NINJA=${NINJA_EARLY:-missing}"
-          if [ -x "$NINJA_EARLY" ] && [ -f out/soong/build.ninja ]; then
-            "$NINJA_EARLY" -f out/soong/build.ninja -t targets all 2>/dev/null \
-              | grep -E '^out/soong/(Android|make_vars|installs|late)-' | head -20 || true
-            for f in make_vars installs Android late; do
-              t="out/soong/$f-twrp_cannon.mk"
-              if [ -s "$t" ]; then
-                echo "SOONG_INTERFACE_EXISTS $t $(wc -c < "$t")"
-                continue
-              fi
-              rm -f "$t"
-              "$NINJA_EARLY" -f out/soong/build.ninja "$t" 2>&1 | tail -3 \
-                || echo "SOONG_INTERFACE_GEN_FAILED $t"
-              if [ -s "$t" ]; then
-                echo "SOONG_INTERFACE_OK $t $(wc -c < "$t")"
-              else
-                echo "SOONG_INTERFACE_EMPTY_FALLBACK $t"
-                touch "$t"
-              fi
-            done
-          else
-            echo "SOONG_INTERFACE_NO_NINJA_OR_BUILD_NINJA"
-            for f in make_vars installs Android late; do touch "out/soong/$f-twrp_cannon.mk"; done
-          fi
+          # AOSP soong_build只生成build.ninja；make接口文件由build.ninja执行时生成。
+          # 此时 build.ninja 还没生成，先 touch 空文件让第1步 kati 过；真实接口
+          # 在第1步生成 build.ninja 后再用 ninja 生成，见下面“第1.2步”。
+          for f in make_vars installs Android late; do touch "out/soong/$f-twrp_cannon.mk"; done
           # 真构建阶段需要的占位：build版本号文件 + recovery res目录(FindEmulator用)
           touch out/soong/build_number.txt
           mkdir -p bootable/recovery/res-xhdpi
@@ -504,6 +478,35 @@ jobs:
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true 2>&1 | tail -40 || echo "第1步失败(预期, build.ninja已生成)"
           ls -la out/soong/build.ninja 2>&1 || echo "build.ninja 未生成"
+          # 第1.2步：build.ninja 已生成，用 ninja 生成真实的 Soong make 接口。
+          # 之前这里只有空的 Android-twrp_cannon.mk，kati 看不到 Soong 模块，
+          # 所以 libcutils/libinit 等 target unknown、libinit.a 没有生成规则。
+          echo "=== 第1.2步: 生成 Soong make 接口 ==="
+          SOONG_NINJA=prebuilts/build-tools/linux-x86/bin/ninja
+          if [ ! -x "$SOONG_NINJA" ]; then SOONG_NINJA=$(command -v ninja || true); fi
+          echo "SOONG_INTERFACE_NINJA=${SOONG_NINJA:-missing}"
+          if [ -x "$SOONG_NINJA" ] && [ -f out/soong/build.ninja ]; then
+            "$SOONG_NINJA" -f out/soong/build.ninja -t targets all 2>/dev/null \
+              | grep -E 'out/soong/(Android|make_vars|installs|late)-' | head -20 || true
+            for f in make_vars installs Android late; do
+              t="out/soong/$f-twrp_cannon.mk"
+              if [ -s "$t" ]; then
+                echo "SOONG_INTERFACE_EXISTS $t $(wc -c < "$t")"
+                continue
+              fi
+              rm -f "$t"
+              "$SOONG_NINJA" -f out/soong/build.ninja "$t" 2>&1 | tail -3 \
+                || echo "SOONG_INTERFACE_GEN_FAILED $t"
+              if [ -s "$t" ]; then
+                echo "SOONG_INTERFACE_OK $t $(wc -c < "$t")"
+              else
+                echo "SOONG_INTERFACE_EMPTY_FALLBACK $t"
+                touch "$t"
+              fi
+            done
+          else
+            echo "SOONG_INTERFACE_NO_NINJA_OR_BUILD_NINJA"
+          fi
           # file_contexts.bin 的 Make 规则直接依赖 $(HOST_OUT_EXECUTABLES)/checkfc
           # 和 sefcontext_compile。PRODUCT_HOST_PACKAGES 只影响安装列表，不会让
           # recoveryimage 目标自动依赖这两个 host 模块，因此显式预编译一次。
