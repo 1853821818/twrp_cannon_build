@@ -248,6 +248,9 @@ jobs:
           rm -rf system/apex/apexd
           # packages/modules/IPsec的apex(updatable APEX需min_sdk_version)recovery不需要
           rm -rf packages/modules/IPsec
+          # gralloc.default 是 vendor 模块却链接 platform 的 libcutils/liblog/libc++；
+          # 当前 TWRP 精简树没有 VNDK，Kati 会直接报 can not link against。recovery 不需要 gralloc。
+          rm -rf hardware/libhardware/modules/gralloc
           # 批量删除所有updatable apex定义(recovery不需要，逐个删太慢)。
           # soong会为updatable apex校验min_sdk_version，TWRP recovery全是C++不依赖任何apex
           find external frameworks packages -type d -name apex -exec rm -rf {} + 2>/dev/null || true
