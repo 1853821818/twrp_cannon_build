@@ -298,6 +298,39 @@ jobs:
           echo "PRE_EXIT=$?"
           echo "=== rbcrun3 stderr ==="; head -30 out/rbcrun3.err 2>&1
           echo "=== 预生成 .mk ==="; cat out/starlark_results/out_release_config_entrypoint.scl.mk 2>&1 | head -40
+          # 必须在 build_build_var_cache 之前补齐核心仓库：
+          # 该步骤会运行 Soong finder 并把 Android.bp 路径列表缓存到 out/soong/.module_paths。
+          # 如果缓存生成后才克隆 system/core，libcutils/libinit 等模块不会进入 build.ninja。
+          for spec in \
+            "system/core:platform/system/core" \
+            "system/vold:platform/system/vold" \
+            "system/libbase:platform/system/libbase" \
+            "system/logging:platform/system/logging" \
+            "system/tools/mkbootimg:platform/system/tools/mkbootimg" \
+            "external/avb:platform/external/avb" \
+            "external/scrypt:platform/external/scrypt"; do
+            path="${spec%%:*}"
+            name="${spec#*:}"
+            if [ ! -d "$path" ] || [ -z "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
+              echo "CORE_REPO_MISSING $path -> clone $name"
+              rm -rf "$path"
+              mkdir -p "$(dirname "$path")"
+              git clone --depth 1 -b android-14.0.0_r17 "https://android.googlesource.com/$name" "$path" 2>&1 | tail -3 || \
+              git clone --depth 1 -b android-14.0.0_r17 "https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/$name.git" "$path" 2>&1 | tail -3 || true
+            fi
+            if [ -n "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
+              echo "CORE_REPO_OK $path"
+            else
+              echo "CORE_REPO_STILL_MISSING $path"
+            fi
+          done
+          echo "=== CORE_DEBUG ==="
+          ls -ld system/core system/core/libcutils/Android.bp system/core/init/Android.bp 2>&1 || true
+          grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
+          grep -n 'name: "libinit"' system/core/init/Android.bp 2>&1 | head -2 || true
+          du -sh system/core 2>&1 || true
+          # 清掉可能由旧 soong/finder 生成的路径缓存，保证下一次扫描包含新克隆目录。
+          rm -rf out/soong/.module_paths out/soong/.bpglob out/soong/.bpglob_intermediates
           build_build_var_cache
           # 关键:lunch必须在当前shell直接运行(不能接管道|tail,否则在子shell执行,TARGET_PRODUCT等
           # 环境变量设置会丢失,soong_ui默认aosp_arm导致cleanspec找make_vars-aosp_arm.mk缺失)
@@ -437,36 +470,6 @@ jobs:
             mkdir -p bootable/recovery/res-xhdpi
             cp -a device/xiaomi/cannon/prebuilt/res-xhdpi/. bootable/recovery/res-xhdpi/
           fi
-          # repo sync 可能静默漏拉或在后续 sync 中覆盖手工目录；必须在 soong 扫描前
-          # 再确保 system/core / system/vold 等模块源码存在，否则 libinit/libvold 不会注册。
-          for spec in \
-            "system/core:platform/system/core" \
-            "system/vold:platform/system/vold" \
-            "system/libbase:platform/system/libbase" \
-            "system/logging:platform/system/logging" \
-            "system/tools/mkbootimg:platform/system/tools/mkbootimg" \
-            "external/avb:platform/external/avb" \
-            "external/scrypt:platform/external/scrypt"; do
-            path="${spec%%:*}"
-            name="${spec#*:}"
-            if [ ! -d "$path" ] || [ -z "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
-              echo "CORE_REPO_MISSING $path -> clone $name"
-              rm -rf "$path"
-              mkdir -p "$(dirname "$path")"
-              git clone --depth 1 -b android-14.0.0_r17 "https://android.googlesource.com/$name" "$path" 2>&1 | tail -3 || \
-              git clone --depth 1 -b android-14.0.0_r17 "https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/$name.git" "$path" 2>&1 | tail -3 || true
-            fi
-            if [ -n "$(find "$path" -maxdepth 2 \( -name Android.bp -o -name Android.mk \) 2>/dev/null | head -1)" ]; then
-              echo "CORE_REPO_OK $path"
-            else
-              echo "CORE_REPO_STILL_MISSING $path"
-            fi
-          done
-          echo "=== CORE_DEBUG ==="
-          ls -ld system/core system/core/libcutils/Android.bp system/core/init/Android.bp 2>&1 || true
-          grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
-          grep -n 'name: "libinit"' system/core/init/Android.bp 2>&1 | head -2 || true
-          du -sh system/core 2>&1 || true
           # Android.mk空→soong host工具在make侧无规则。策略:
           # 1) 先跑一次make-mode: soong bootstrap生成build.ninja(预期在mkbootimg失败)
           # 2) 用soong build.ninja直接编译host工具mkbootimg
