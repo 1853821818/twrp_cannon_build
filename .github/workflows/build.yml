@@ -358,9 +358,35 @@ jobs:
             [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
           done
           # AOSP soong_build只生成build.ninja；make接口文件(make_vars/installs/Android/late)由build.ninja
-          # 执行时生成，但kati的cleanspec/build先于runNinja需要它们。touch空文件保底让kati过，
-          # recovery模块编译由runNinja执行build.ninja完成(soong库已在内)
-          for f in make_vars installs Android late; do touch "out/soong/$f-twrp_cannon.mk"; done
+          # 执行时生成。此前直接 touch 空文件会让 kati 看不到 Soong 模块，导致
+          # libcutils/libinit 等 target unknown 或 obj/STATIC_LIBRARIES/libinit.a 无规则。
+          # 这里先用 ninja 生成真实接口文件，只有生成失败才 touch 空文件保底。
+          NINJA_EARLY=prebuilts/build-tools/linux-x86/bin/ninja
+          if [ ! -x "$NINJA_EARLY" ]; then NINJA_EARLY=$(command -v ninja || true); fi
+          echo "SOONG_INTERFACE_NINJA=${NINJA_EARLY:-missing}"
+          if [ -x "$NINJA_EARLY" ] && [ -f out/soong/build.ninja ]; then
+            "$NINJA_EARLY" -f out/soong/build.ninja -t targets all 2>/dev/null \
+              | grep -E '^out/soong/(Android|make_vars|installs|late)-' | head -20 || true
+            for f in make_vars installs Android late; do
+              t="out/soong/$f-twrp_cannon.mk"
+              if [ -s "$t" ]; then
+                echo "SOONG_INTERFACE_EXISTS $t $(wc -c < "$t")"
+                continue
+              fi
+              rm -f "$t"
+              "$NINJA_EARLY" -f out/soong/build.ninja "$t" 2>&1 | tail -3 \
+                || echo "SOONG_INTERFACE_GEN_FAILED $t"
+              if [ -s "$t" ]; then
+                echo "SOONG_INTERFACE_OK $t $(wc -c < "$t")"
+              else
+                echo "SOONG_INTERFACE_EMPTY_FALLBACK $t"
+                touch "$t"
+              fi
+            done
+          else
+            echo "SOONG_INTERFACE_NO_NINJA_OR_BUILD_NINJA"
+            for f in make_vars installs Android late; do touch "out/soong/$f-twrp_cannon.mk"; done
+          fi
           # 真构建阶段需要的占位：build版本号文件 + recovery res目录(FindEmulator用)
           touch out/soong/build_number.txt
           mkdir -p bootable/recovery/res-xhdpi
