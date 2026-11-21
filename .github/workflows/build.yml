@@ -387,6 +387,27 @@ jobs:
           else
             echo "HWSM_XML_MISSING system/hwservicemanager/hwservicemanager.xml"
           fi
+          # relink_binaries 依赖的其它模块 rc 也没有 install 规则；从源码树按文件名
+          # 找到真实 rc 并复制到目标路径，避免 ninja 逐个报 missing and no known rule。
+          copy_relink_rc() {
+            base="$1"; dst="$2"
+            [ -e "$dst" ] && { echo "RELINK_ETC_EXISTS $dst"; return 0; }
+            src=$(find system frameworks hardware bootable external vendor -type f -name "$base" 2>/dev/null | head -1)
+            if [ -n "$src" ]; then
+              mkdir -p "$(dirname "$dst")"
+              cp "$src" "$dst"
+              echo "RELINK_ETC_COPY $src -> $dst $(wc -c < "$dst")"
+            else
+              echo "RELINK_ETC_MISSING $base"
+            fi
+          }
+          copy_relink_rc logd.rc out/target/product/cannon/system/etc/init/logd.rc
+          copy_relink_rc servicemanager.rc out/target/product/cannon/system/etc/init/servicemanager.rc
+          copy_relink_rc vndservicemanager.rc out/target/product/cannon/vendor/etc/init/vndservicemanager.rc
+          copy_relink_rc keystore.rc out/target/product/cannon/system/etc/init/keystore.rc
+          copy_relink_rc charger.rc out/target/product/cannon/system/etc/init/charger.rc
+          copy_relink_rc ueventd.rc out/target/product/cannon/system/etc/ueventd.rc
+          copy_relink_rc minadbd.rc out/target/product/cannon/system/etc/init/minadbd.rc
           # AOSP soong_build只生成build.ninja；make接口文件由build.ninja执行时生成。
           # 此时 build.ninja 还没生成，先 touch 空文件让第1步 kati 过；真实接口
           # 在第1步生成 build.ninja 后再用 ninja 生成，见下面“第1.2步”。
@@ -733,6 +754,13 @@ jobs:
             cp system/hwservicemanager/hwservicemanager.xml out/target/product/cannon/system/etc/vintf/manifest/hwservicemanager.xml
             echo "HWSM_XML_PRE_STEP3 $(wc -c < out/target/product/cannon/system/etc/vintf/manifest/hwservicemanager.xml)"
           fi
+          copy_relink_rc logd.rc out/target/product/cannon/system/etc/init/logd.rc
+          copy_relink_rc servicemanager.rc out/target/product/cannon/system/etc/init/servicemanager.rc
+          copy_relink_rc vndservicemanager.rc out/target/product/cannon/vendor/etc/init/vndservicemanager.rc
+          copy_relink_rc keystore.rc out/target/product/cannon/system/etc/init/keystore.rc
+          copy_relink_rc charger.rc out/target/product/cannon/system/etc/init/charger.rc
+          copy_relink_rc ueventd.rc out/target/product/cannon/system/etc/ueventd.rc
+          copy_relink_rc minadbd.rc out/target/product/cannon/system/etc/init/minadbd.rc
           set +e
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/twrp_step3.log 2>&1
