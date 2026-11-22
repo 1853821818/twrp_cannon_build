@@ -454,18 +454,17 @@ jobs:
               cp "$K2_XML_SRC" "$K2_XML_DST"
               echo "RELINK_VINTF_COPY $K2_XML_SRC -> $K2_XML_DST $(wc -c < "$K2_XML_DST")"
             else
-              cat > "$K2_XML_DST" <<'K2XML'
-<manifest version="1.0" type="framework">
-    <hal format="aidl">
-        <name>android.system.keystore2</name>
-        <version>5</version>
-        <interface>
-            <name>IKeystoreService</name>
-            <instance>default</instance>
-        </interface>
-    </hal>
-</manifest>
-K2XML
+              printf '%s\n' \
+                '<manifest version="1.0" type="framework">' \
+                '    <hal format="aidl">' \
+                '        <name>android.system.keystore2</name>' \
+                '        <version>5</version>' \
+                '        <interface>' \
+                '            <name>IKeystoreService</name>' \
+                '            <instance>default</instance>' \
+                '        </interface>' \
+                '    </hal>' \
+                '</manifest>' > "$K2_XML_DST"
               echo "RELINK_VINTF_FALLBACK $K2_XML_DST"
             fi
           fi
@@ -836,18 +835,17 @@ K2XML
               cp "$K2_XML_SRC" "$K2_XML_DST"
               echo "RELINK_VINTF_COPY $K2_XML_SRC -> $K2_XML_DST $(wc -c < "$K2_XML_DST")"
             else
-              cat > "$K2_XML_DST" <<'K2XML'
-<manifest version="1.0" type="framework">
-    <hal format="aidl">
-        <name>android.system.keystore2</name>
-        <version>5</version>
-        <interface>
-            <name>IKeystoreService</name>
-            <instance>default</instance>
-        </interface>
-    </hal>
-</manifest>
-K2XML
+              printf '%s\n' \
+                '<manifest version="1.0" type="framework">' \
+                '    <hal format="aidl">' \
+                '        <name>android.system.keystore2</name>' \
+                '        <version>5</version>' \
+                '        <interface>' \
+                '            <name>IKeystoreService</name>' \
+                '            <instance>default</instance>' \
+                '        </interface>' \
+                '    </hal>' \
+                '</manifest>' > "$K2_XML_DST"
               echo "RELINK_VINTF_FALLBACK $K2_XML_DST"
             fi
           fi
