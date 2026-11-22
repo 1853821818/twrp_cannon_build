@@ -354,13 +354,16 @@ jobs:
             HI_PRUNED=$(find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security | wc -l)
             find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security -exec rm -rf {} + 2>/dev/null || true
             # libkeymint_support 在 hardware/interfaces/security/keymint/support，
-            # 是 TWRP FBE 解密的静态依赖；只保留 keymint/secureclock，移除厂商 service/default。
+            # 是 TWRP FBE 解密的静态依赖；keystore2 的 android.security.compat
+            # 还 import 了 sharedsecret-V1，必须保留 sharedsecret AIDL。
+            # 只保留 keymint/secureclock/sharedsecret，移除厂商 service/default。
             if [ -d hardware/interfaces/security ]; then
-              find hardware/interfaces/security -maxdepth 1 -mindepth 1 -type d ! -name keymint ! -name secureclock -exec rm -rf {} + 2>/dev/null || true
+              find hardware/interfaces/security -maxdepth 1 -mindepth 1 -type d ! -name keymint ! -name secureclock ! -name sharedsecret -exec rm -rf {} + 2>/dev/null || true
               rm -rf hardware/interfaces/security/keymint/aidl/default hardware/interfaces/security/keymint/aidl/vts 2>/dev/null || true
               rm -rf hardware/interfaces/security/secureclock/aidl/vts 2>/dev/null || true
+              rm -rf hardware/interfaces/security/sharedsecret/aidl/vts 2>/dev/null || true
             fi
-            echo "HI_PRUNED dirs=$HI_PRUNED security_keep=keymint,secureclock"
+            echo "HI_PRUNED dirs=$HI_PRUNED security_keep=keymint,secureclock,sharedsecret"
           fi
           # TWRP_REQUIRED_MODULES 强制依赖 vendor 的 health@2.1-service；
           # 精简树不构建 vendor 分区，2.1 vendor 服务没有 install 规则，导致
@@ -375,7 +378,7 @@ jobs:
           fi
           echo "=== CORE_DEBUG ==="
           ls -ld system/core system/core/libcutils/Android.bp system/core/init/Android.bp 2>&1 || true
-          ls -ld system/update_engine/Android.bp system/security/Android.bp system/keymaster/Android.bp system/extras/Android.mk hardware/interfaces/boot hardware/interfaces/fastboot hardware/interfaces/security/keymint/support/Android.bp hardware/interfaces/security/secureclock/aidl/Android.bp 2>&1 || true
+          ls -ld system/update_engine/Android.bp system/security/Android.bp system/keymaster/Android.bp system/extras/Android.mk hardware/interfaces/boot hardware/interfaces/fastboot hardware/interfaces/security/keymint/support/Android.bp hardware/interfaces/security/secureclock/aidl/Android.bp hardware/interfaces/security/sharedsecret/aidl/Android.bp 2>&1 || true
           grep -R -l 'name: "update_metadata-protos"' system/update_engine 2>/dev/null | head -2 || true
           grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
           grep -n 'name: "libinit"' system/core/init/Android.bp 2>&1 | head -2 || true
