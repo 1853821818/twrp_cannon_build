@@ -338,13 +338,14 @@ jobs:
               echo "CORE_REPO_STILL_MISSING $path"
             fi
           done
-          # hardware/interfaces 的 APEX 包装会把 libbase 同时打进 apex10000 和普通变体，
-          # 触发 Soong "apex file libbase.so is provided by two different files"。
-          # TWRP 不需要这些 HAL APEX，移除所有 apex 目录，避免重复打包。
+          # hardware/interfaces 整仓包含大量 vendor HAL（configstore/graphics/keymaster 等），
+          # 在精简 TWRP manifest 下会触发 "vendor can not link against platform" 的 Make 错误。
+          # TWRP 只需要 health 子树的 health@2.0-impl/libhealthservice 等依赖；
+          # 保留 health 和根级 Android.bp/NOTICE/license，其余子目录全部移除。
           if [ -d hardware/interfaces ]; then
-            APEX_DIRS=$(find hardware/interfaces -type d -name apex 2>/dev/null | wc -l)
-            find hardware/interfaces -type d -name apex -prune -exec rm -rf {} + 2>/dev/null || true
-            echo "HI_APEX_REMOVED dirs=$APEX_DIRS"
+            HI_PRUNED=$(find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health | wc -l)
+            find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health -exec rm -rf {} + 2>/dev/null || true
+            echo "HI_PRUNED dirs=$HI_PRUNED"
           fi
           echo "=== CORE_DEBUG ==="
           ls -ld system/core system/core/libcutils/Android.bp system/core/init/Android.bp 2>&1 || true
