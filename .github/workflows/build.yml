@@ -363,8 +363,8 @@ jobs:
           # 供 libkeymaster4/libkeymaster4_1support 链接。
           # 保留 health/boot/fastboot/security/keymaster 和根级 Android.bp/NOTICE/license。
           if [ -d hardware/interfaces ]; then
-            HI_PRUNED=$(find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security ! -name keymaster | wc -l)
-            find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security ! -name keymaster -exec rm -rf {} + 2>/dev/null || true
+            HI_PRUNED=$(find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security ! -name keymaster ! -name confirmationui | wc -l)
+            find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security ! -name keymaster ! -name confirmationui -exec rm -rf {} + 2>/dev/null || true
             # libkeymint_support 在 hardware/interfaces/security/keymint/support，
             # 是 TWRP FBE 解密的静态依赖；keystore2 的 android.security.compat
             # 还 import 了 sharedsecret-V1，必须保留 sharedsecret AIDL。
@@ -378,6 +378,12 @@ jobs:
               rm -rf hardware/interfaces/security/sharedsecret/aidl/vts 2>/dev/null || true
               rm -rf hardware/interfaces/security/rkp/aidl/vts 2>/dev/null || true
             fi
+            # keystore2 的 apc_compat 依赖 confirmationui HIDL 1.0 与 AIDL V1；
+            # 只保留接口定义，移除 default/vts，避免 vendor HAL 链接冲突。
+            if [ -d hardware/interfaces/confirmationui ]; then
+              find hardware/interfaces/confirmationui -maxdepth 2 -mindepth 2 -type d \( -name default -o -name vts \) -exec rm -rf {} + 2>/dev/null || true
+              echo "CONFIRMATIONUI_KEEP interfaces"
+            fi
             # keymaster 只保留 HIDL 接口和 support 库；移除 vendor default 服务、
             # vts 测试和未使用的 keymaster AIDL，避免再次出现 vendor/platform 链接冲突。
             if [ -d hardware/interfaces/keymaster ]; then
@@ -386,7 +392,7 @@ jobs:
               rm -rf hardware/interfaces/keymaster/aidl 2>/dev/null || true
               echo "KEYMASTER_PRUNE keep=3.0,4.0,4.1,support"
             fi
-            echo "HI_PRUNED dirs=$HI_PRUNED security_keep=keymint,secureclock,sharedsecret,rkp keymaster_keep=3.0,4.0,4.1,support"
+            echo "HI_PRUNED dirs=$HI_PRUNED security_keep=keymint,secureclock,sharedsecret,rkp keymaster_keep=3.0,4.0,4.1,support confirmationui_keep=1.0,aidl"
           fi
           # TWRP_REQUIRED_MODULES 强制依赖 vendor 的 health@2.1-service；
           # 精简树不构建 vendor 分区，2.1 vendor 服务没有 install 规则，导致
@@ -401,7 +407,7 @@ jobs:
           fi
           echo "=== CORE_DEBUG ==="
           ls -ld system/core system/core/libcutils/Android.bp system/core/init/Android.bp 2>&1 || true
-          ls -ld system/update_engine/Android.bp system/security/Android.bp system/keymaster/Android.bp system/extras/Android.mk hardware/interfaces/boot hardware/interfaces/fastboot hardware/interfaces/security/keymint/support/Android.bp hardware/interfaces/security/secureclock/aidl/Android.bp hardware/interfaces/security/sharedsecret/aidl/Android.bp hardware/interfaces/security/rkp/aidl/Android.bp hardware/interfaces/keymaster/3.0/Android.bp hardware/interfaces/keymaster/4.0/Android.bp hardware/interfaces/keymaster/4.1/Android.bp hardware/interfaces/keymaster/4.0/support/Android.bp hardware/interfaces/keymaster/4.1/support/Android.bp 2>&1 || true
+          ls -ld system/update_engine/Android.bp system/security/Android.bp system/keymaster/Android.bp system/extras/Android.mk hardware/interfaces/boot hardware/interfaces/fastboot hardware/interfaces/security/keymint/support/Android.bp hardware/interfaces/security/secureclock/aidl/Android.bp hardware/interfaces/security/sharedsecret/aidl/Android.bp hardware/interfaces/security/rkp/aidl/Android.bp hardware/interfaces/keymaster/3.0/Android.bp hardware/interfaces/keymaster/4.0/Android.bp hardware/interfaces/keymaster/4.1/Android.bp hardware/interfaces/keymaster/4.0/support/Android.bp hardware/interfaces/keymaster/4.1/support/Android.bp hardware/interfaces/confirmationui/1.0/Android.bp hardware/interfaces/confirmationui/aidl/Android.bp 2>&1 || true
           grep -R -l 'name: "update_metadata-protos"' system/update_engine 2>/dev/null | head -2 || true
           grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
           grep -n 'name: "libinit"' system/core/init/Android.bp 2>&1 | head -2 || true
