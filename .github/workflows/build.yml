@@ -227,9 +227,6 @@ jobs:
           # TWRP 14.1 gui/partitionlist.cpp 在 clang -Wmisleading-indentation 下报错，
           # 重写选中切换逻辑，行为不变且不再触发告警。
           python3 $GITHUB_WORKSPACE/scripts/patch_partitionlist_indent.py
-          # libinit 在 recovery 下不使用 apex-info-list/libxml2；精简树没有
-          # system/apex/apexd 的 xsd_config 和 external/libxml2，先裁剪依赖。
-          python3 $GITHUB_WORKSPACE/scripts/patch_libinit_recovery.py
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
@@ -396,6 +393,9 @@ jobs:
           grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
           grep -n 'name: "libinit"' system/core/init/Android.bp 2>&1 | head -2 || true
           du -sh system/core 2>&1 || true
+          # system/core 可能由上面的核心仓库兜底克隆后才出现，libinit 依赖裁剪
+          # 必须放在兜底之后，否则会因 system/core/init/Android.bp 尚不存在而中断。
+          python3 $GITHUB_WORKSPACE/scripts/patch_libinit_recovery.py
           # AOSP 14 的 libadbd_core/libadb_host/fastboot 依赖 generated_headers
           # "platform_tools_version"，但精简 manifest 没有定义该模块。这里生成一个
           # 最小的 header library，并把 adb 的 generated_headers 改为 header_libs。
