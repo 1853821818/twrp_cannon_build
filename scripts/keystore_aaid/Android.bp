@@ -13,7 +13,7 @@
 // limitations under the License.
 
 package {
-    default_applicable_licenses: ["Android-Apache-2.0"],
+    default_applicable_licenses: ["system_security_license"],
 }
 
 aidl_interface {
@@ -21,9 +21,6 @@ aidl_interface {
     srcs: ["android/security/keystore/*.aidl"],
     unstable: true,
     backend: {
-        rust: {
-            enabled: true,
-        },
         cpp: {
             enabled: true,
         },
