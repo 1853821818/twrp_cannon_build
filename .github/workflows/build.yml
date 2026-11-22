@@ -383,6 +383,21 @@ jobs:
           grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
           grep -n 'name: "libinit"' system/core/init/Android.bp 2>&1 | head -2 || true
           du -sh system/core 2>&1 || true
+          # AOSP 14 的 libadbd_core/libadb_host/fastboot 依赖 generated_headers
+          # "platform_tools_version"，但精简 manifest 没有定义该模块。这里生成一个
+          # 最小的 header library，并把 generated_headers 改为 header_libs。
+          if [ -f packages/modules/adb/Android.bp ]; then
+            mkdir -p packages/modules/adb/platform_tools_version_headers
+            printf '%s\n' '#ifndef PLATFORM_TOOLS_VERSION_H' '#define PLATFORM_TOOLS_VERSION_H' '#define PLATFORM_TOOLS_VERSION "34.0.0"' '#endif' > packages/modules/adb/platform_tools_version_headers/platform_tools_version.h
+            if ! grep -q 'name: "platform_tools_version"' packages/modules/adb/Android.bp; then
+              printf '%s\n' '' 'cc_library_headers {' '    name: "platform_tools_version",' '    host_supported: true,' '    recovery_available: true,' '    export_include_dirs: ["platform_tools_version_headers"],' '    visibility: ["//visibility:public"],' '}' >> packages/modules/adb/Android.bp
+              echo "PLATFORM_TOOLS_VERSION_HEADER_ADDED"
+            fi
+            sed -i 's/generated_headers: \["platform_tools_version"\],/header_libs: ["platform_tools_version"],/' packages/modules/adb/Android.bp
+          fi
+          if [ -f system/core/fastboot/Android.bp ]; then
+            sed -i 's/generated_headers: \["platform_tools_version"\],/header_libs: ["platform_tools_version"],/' system/core/fastboot/Android.bp
+          fi
           # 清掉可能由旧 soong/finder 生成的路径缓存，保证下一次扫描包含新克隆目录。
           rm -rf out/soong/.module_paths out/soong/.bpglob out/soong/.bpglob_intermediates
           build_build_var_cache
