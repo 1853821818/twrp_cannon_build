@@ -420,7 +420,7 @@ jobs:
           # 但精简构建没有定义该宏。没有 ozip_decrypt 二进制时该函数本来就
           # 会在前面直接 return 1，这里加条件编译保护即可。
           if grep -q 'TW_OZIP_DECRYPT_KEY' bootable/recovery/gui/action.cpp && ! grep -q '#ifdef TW_OZIP_DECRYPT_KEY' bootable/recovery/gui/action.cpp; then
-            awk '/TW_OZIP_DECRYPT_KEY/ { print "#ifdef TW_OZIP_DECRYPT_KEY"; print; print "#else"; print "\treturn 1;"; print "#endif"; next } { print }' bootable/recovery/gui/action.cpp > bootable/recovery/gui/action.cpp.tmp && mv bootable/recovery/gui/action.cpp.tmp bootable/recovery/gui/action.cpp
+            awk '/TW_OZIP_DECRYPT_KEY/ { print "#ifdef TW_OZIP_DECRYPT_KEY"; print; print "#else"; print "\t(void)zip_path;"; print "\treturn 1;"; print "#endif"; next } { print }' bootable/recovery/gui/action.cpp > bootable/recovery/gui/action.cpp.tmp && mv bootable/recovery/gui/action.cpp.tmp bootable/recovery/gui/action.cpp
             echo "OZIP_KEY_GUARD_PATCHED"
           fi
           # 清掉可能由旧 soong/finder 生成的路径缓存，保证下一次扫描包含新克隆目录。
