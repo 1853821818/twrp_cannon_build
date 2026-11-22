@@ -2,3 +2,37 @@ filegroup {
     name: "IKeyAttestationApplicationIdProvider.aidl",
     srcs: ["android/security/keymaster/IKeyAttestationApplicationIdProvider.aidl"],
 }
+
+// Minimal frameworks/base/core/java AIDL interfaces needed by keystore2's
+// Rust crate. The stripped manifest does not sync frameworks/base, so these
+// modules are injected here together with the AIDL files.
+aidl_interface {
+    name: "android.os.permissions_aidl",
+    unstable: true,
+    local_include_dir: ".",
+    srcs: [
+        "android/os/IPermissionController.aidl",
+    ],
+    backend: {
+        rust: {
+            enabled: true,
+            apex_available: [
+                "//apex_available:platform",
+                "com.android.virt",
+            ],
+        },
+    },
+}
+
+aidl_interface {
+    name: "android.security.rkp_aidl",
+    unstable: true,
+    srcs: [
+        "android/security/rkp/*.aidl",
+    ],
+    backend: {
+        rust: {
+            enabled: true,
+        },
+    },
+}
