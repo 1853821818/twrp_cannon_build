@@ -347,6 +347,17 @@ jobs:
             find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health -exec rm -rf {} + 2>/dev/null || true
             echo "HI_PRUNED dirs=$HI_PRUNED"
           fi
+          # TWRP_REQUIRED_MODULES 强制依赖 vendor 的 health@2.1-service；
+          # 精简树不构建 vendor 分区，2.1 vendor 服务没有 install 规则，导致
+          # relink_binaries 缺 vendor/etc/init/android.hardware.health@2.1-service.rc。
+          # health 2.1 只影响充电/电池展示，解密不依赖；保留 2.0，移除 2.1 服务依赖。
+          if [ -f bootable/recovery/Android.mk ]; then
+            sed -i '/android.hardware.health@2.1-service/d; /android.hardware.health@2.1-impl.recovery/d; /android.hardware.health@2.1.xml/d' bootable/recovery/Android.mk
+            if [ -f bootable/recovery/prebuilt/Android.mk ]; then
+              sed -i '/android.hardware.health@2.1-service/d' bootable/recovery/prebuilt/Android.mk
+            fi
+            echo "TWRP_HEALTH_21_REQUIRED_REMOVED"
+          fi
           echo "=== CORE_DEBUG ==="
           ls -ld system/core system/core/libcutils/Android.bp system/core/init/Android.bp 2>&1 || true
           grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
