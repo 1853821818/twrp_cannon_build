@@ -440,6 +440,12 @@ jobs:
           copy_relink_rc charger.rc out/target/product/cannon/system/etc/init/charger.rc
           copy_relink_rc ueventd.rc out/target/product/cannon/system/etc/ueventd.rc
           copy_relink_rc minadbd.rc out/target/product/cannon/system/etc/init/minadbd.rc
+          copy_relink_rc keystore2.rc out/target/product/cannon/system/etc/init/keystore2.rc
+          if [ ! -e out/target/product/cannon/system/etc/init/keystore2.rc ]; then
+            mkdir -p out/target/product/cannon/system/etc/init
+            : > out/target/product/cannon/system/etc/init/keystore2.rc
+            echo "RELINK_ETC_EMPTY keystore2.rc"
+          fi
           # AOSP soong_build只生成build.ninja；make接口文件由build.ninja执行时生成。
           # 此时 build.ninja 还没生成，先 touch 空文件让第1步 kati 过；真实接口
           # 在第1步生成 build.ninja 后再用 ninja 生成，见下面“第1.2步”。
@@ -793,6 +799,12 @@ jobs:
           copy_relink_rc charger.rc out/target/product/cannon/system/etc/init/charger.rc
           copy_relink_rc ueventd.rc out/target/product/cannon/system/etc/ueventd.rc
           copy_relink_rc minadbd.rc out/target/product/cannon/system/etc/init/minadbd.rc
+          copy_relink_rc keystore2.rc out/target/product/cannon/system/etc/init/keystore2.rc
+          if [ ! -e out/target/product/cannon/system/etc/init/keystore2.rc ]; then
+            mkdir -p out/target/product/cannon/system/etc/init
+            : > out/target/product/cannon/system/etc/init/keystore2.rc
+            echo "RELINK_ETC_EMPTY keystore2.rc"
+          fi
           set +e
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
               BUILD_BROKEN_DISABLE_BAZEL=true > /tmp/twrp_step3.log 2>&1
