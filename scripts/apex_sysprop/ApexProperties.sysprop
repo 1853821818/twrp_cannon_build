@@ -1,0 +1,12 @@
+owner: Platform
+module: "android.sysprop.ApexProperties"
+
+# Whether APEX updates are supported on this device.
+prop {
+    api_name: "updatable"
+    type: Boolean
+    scope: Public
+    access: Readonly
+    prop_name: "ro.apex.updatable"
+    integer_as_bool: true
+}

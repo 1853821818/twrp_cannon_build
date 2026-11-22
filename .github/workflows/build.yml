@@ -227,6 +227,9 @@ jobs:
           # TWRP 14.1 gui/partitionlist.cpp 在 clang -Wmisleading-indentation 下报错，
           # 重写选中切换逻辑，行为不变且不再触发告警。
           python3 $GITHUB_WORKSPACE/scripts/patch_partitionlist_indent.py
+          # libinit 在 recovery 下不使用 apex-info-list/libxml2；精简树没有
+          # system/apex/apexd 的 xsd_config 和 external/libxml2，先裁剪依赖。
+          python3 $GITHUB_WORKSPACE/scripts/patch_libinit_recovery.py
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
@@ -249,6 +252,13 @@ jobs:
           rm -rf system/apex/tests
           # system/apex/apexd(apex daemon)recovery不需要，其测试模块引用已删的apexd_testdata报错
           rm -rf system/apex/apexd
+          # libinit 的 whole_static_libs 依赖 libcom.android.sysprop.apex，
+          # 它由 system/apex/apexd/sysprop 的 sysprop_library 生成。apexd 本体
+          # 删除后，只恢复这个最小 sysprop 定义，不恢复 apexd 服务与测试。
+          mkdir -p system/apex/apexd
+          rm -rf system/apex/apexd/sysprop
+          cp -a $GITHUB_WORKSPACE/scripts/apex_sysprop system/apex/apexd/sysprop
+          ls system/apex/apexd/sysprop/Android.bp system/apex/apexd/sysprop/ApexProperties.sysprop
           # packages/modules/IPsec的apex(updatable APEX需min_sdk_version)recovery不需要
           rm -rf packages/modules/IPsec
           # gralloc.default 是 vendor 模块却链接 platform 的 libcutils/liblog/libc++；
