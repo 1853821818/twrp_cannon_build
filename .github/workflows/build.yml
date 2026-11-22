@@ -316,6 +316,10 @@ jobs:
             "external/scrypt:platform/external/scrypt" \
             "external/sqlite:platform/external/sqlite" \
             "prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8:platform/prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8" \
+            "system/update_engine:platform/system/update_engine" \
+            "system/security:platform/system/security" \
+            "system/keymaster:platform/system/keymaster" \
+            "system/extras:platform/system/extras" \
             "hardware/interfaces:platform/hardware/interfaces"; do
             path="${spec%%:*}"
             name="${spec#*:}"
@@ -328,6 +332,10 @@ jobs:
                 if ! git clone --depth 1 -b android-14.0.0_r17 "https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/$name.git" "$path" > /tmp/core_clone.log 2>&1; then
                   rm -rf "$path"
                   git clone --depth 1 "https://android.googlesource.com/$name" "$path" > /tmp/core_clone.log 2>&1 || true
+                  if [ ! -d "$path/.git" ]; then
+                    rm -rf "$path"
+                    git clone --depth 1 "https://github.com/aosp-mirror/${name//\//_}.git" "$path" > /tmp/core_clone.log 2>&1 || true
+                  fi
                 fi
               fi
               tail -3 /tmp/core_clone.log
@@ -343,8 +351,8 @@ jobs:
           # TWRP 只需要 health 子树的 health@2.0-impl/libhealthservice 等依赖；
           # 保留 health 和根级 Android.bp/NOTICE/license，其余子目录全部移除。
           if [ -d hardware/interfaces ]; then
-            HI_PRUNED=$(find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health | wc -l)
-            find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health -exec rm -rf {} + 2>/dev/null || true
+            HI_PRUNED=$(find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot | wc -l)
+            find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot -exec rm -rf {} + 2>/dev/null || true
             echo "HI_PRUNED dirs=$HI_PRUNED"
           fi
           # TWRP_REQUIRED_MODULES 强制依赖 vendor 的 health@2.1-service；
@@ -360,6 +368,8 @@ jobs:
           fi
           echo "=== CORE_DEBUG ==="
           ls -ld system/core system/core/libcutils/Android.bp system/core/init/Android.bp 2>&1 || true
+          ls -ld system/update_engine/Android.bp system/security/Android.bp system/keymaster/Android.bp system/extras/Android.bp hardware/interfaces/boot hardware/interfaces/fastboot 2>&1 || true
+          grep -R -l 'name: "update_metadata-protos"' system/update_engine 2>/dev/null | head -2 || true
           grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
           grep -n 'name: "libinit"' system/core/init/Android.bp 2>&1 | head -2 || true
           du -sh system/core 2>&1 || true
