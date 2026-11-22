@@ -446,6 +446,29 @@ jobs:
             : > out/target/product/cannon/system/etc/init/keystore2.rc
             echo "RELINK_ETC_EMPTY keystore2.rc"
           fi
+          K2_XML_SRC=system/security/keystore2/android.system.keystore2-service.xml
+          K2_XML_DST=out/target/product/cannon/system/etc/vintf/manifest/android.system.keystore2-service.xml
+          if [ ! -e "$K2_XML_DST" ]; then
+            mkdir -p "$(dirname "$K2_XML_DST")"
+            if [ -f "$K2_XML_SRC" ]; then
+              cp "$K2_XML_SRC" "$K2_XML_DST"
+              echo "RELINK_VINTF_COPY $K2_XML_SRC -> $K2_XML_DST $(wc -c < "$K2_XML_DST")"
+            else
+              cat > "$K2_XML_DST" <<'K2XML'
+<manifest version="1.0" type="framework">
+    <hal format="aidl">
+        <name>android.system.keystore2</name>
+        <version>5</version>
+        <interface>
+            <name>IKeystoreService</name>
+            <instance>default</instance>
+        </interface>
+    </hal>
+</manifest>
+K2XML
+              echo "RELINK_VINTF_FALLBACK $K2_XML_DST"
+            fi
+          fi
           # AOSP soong_build只生成build.ninja；make接口文件由build.ninja执行时生成。
           # 此时 build.ninja 还没生成，先 touch 空文件让第1步 kati 过；真实接口
           # 在第1步生成 build.ninja 后再用 ninja 生成，见下面“第1.2步”。
@@ -804,6 +827,29 @@ jobs:
             mkdir -p out/target/product/cannon/system/etc/init
             : > out/target/product/cannon/system/etc/init/keystore2.rc
             echo "RELINK_ETC_EMPTY keystore2.rc"
+          fi
+          K2_XML_SRC=system/security/keystore2/android.system.keystore2-service.xml
+          K2_XML_DST=out/target/product/cannon/system/etc/vintf/manifest/android.system.keystore2-service.xml
+          if [ ! -e "$K2_XML_DST" ]; then
+            mkdir -p "$(dirname "$K2_XML_DST")"
+            if [ -f "$K2_XML_SRC" ]; then
+              cp "$K2_XML_SRC" "$K2_XML_DST"
+              echo "RELINK_VINTF_COPY $K2_XML_SRC -> $K2_XML_DST $(wc -c < "$K2_XML_DST")"
+            else
+              cat > "$K2_XML_DST" <<'K2XML'
+<manifest version="1.0" type="framework">
+    <hal format="aidl">
+        <name>android.system.keystore2</name>
+        <version>5</version>
+        <interface>
+            <name>IKeystoreService</name>
+            <instance>default</instance>
+        </interface>
+    </hal>
+</manifest>
+K2XML
+              echo "RELINK_VINTF_FALLBACK $K2_XML_DST"
+            fi
           fi
           set +e
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc) KEEP_VNDK=false BOARD_VNDK_VERSION= \
