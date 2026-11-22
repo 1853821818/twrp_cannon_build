@@ -25,6 +25,10 @@ TW_INCLUDE_FUSE_EXFAT := true
 TW_EXCLUDE_NANO := true
 # 精简 manifest 下 tzdata 未生成，时区数据仅影响显示，排除
 TW_EXCLUDE_TZDATA := true
+# lpdump/lptools 仅用于动态分区诊断，不是 /data 解密必需；
+# 精简树里 lpdump 的 init_rc 没有 install 规则，排除以避免无谓依赖。
+TW_EXCLUDE_LPDUMP := true
+TW_EXCLUDE_LPTOOLS := true
 
 # For debugging Purposes
 TWRP_INCLUDE_LOGCAT := true

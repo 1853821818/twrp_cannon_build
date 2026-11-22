@@ -351,9 +351,16 @@ jobs:
           # TWRP 只需要 health 子树的 health@2.0-impl/libhealthservice 等依赖；
           # 保留 health 和根级 Android.bp/NOTICE/license，其余子目录全部移除。
           if [ -d hardware/interfaces ]; then
-            HI_PRUNED=$(find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot | wc -l)
-            find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot -exec rm -rf {} + 2>/dev/null || true
-            echo "HI_PRUNED dirs=$HI_PRUNED"
+            HI_PRUNED=$(find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security | wc -l)
+            find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security -exec rm -rf {} + 2>/dev/null || true
+            # libkeymint_support 在 hardware/interfaces/security/keymint/support，
+            # 是 TWRP FBE 解密的静态依赖；只保留 keymint/secureclock，移除厂商 service/default。
+            if [ -d hardware/interfaces/security ]; then
+              find hardware/interfaces/security -maxdepth 1 -mindepth 1 -type d ! -name keymint ! -name secureclock -exec rm -rf {} + 2>/dev/null || true
+              rm -rf hardware/interfaces/security/keymint/aidl/default hardware/interfaces/security/keymint/aidl/vts 2>/dev/null || true
+              rm -rf hardware/interfaces/security/secureclock/aidl/vts 2>/dev/null || true
+            fi
+            echo "HI_PRUNED dirs=$HI_PRUNED security_keep=keymint,secureclock"
           fi
           # TWRP_REQUIRED_MODULES 强制依赖 vendor 的 health@2.1-service；
           # 精简树不构建 vendor 分区，2.1 vendor 服务没有 install 规则，导致
@@ -368,7 +375,7 @@ jobs:
           fi
           echo "=== CORE_DEBUG ==="
           ls -ld system/core system/core/libcutils/Android.bp system/core/init/Android.bp 2>&1 || true
-          ls -ld system/update_engine/Android.bp system/security/Android.bp system/keymaster/Android.bp system/extras/Android.bp hardware/interfaces/boot hardware/interfaces/fastboot 2>&1 || true
+          ls -ld system/update_engine/Android.bp system/security/Android.bp system/keymaster/Android.bp system/extras/Android.mk hardware/interfaces/boot hardware/interfaces/fastboot hardware/interfaces/security/keymint/support/Android.bp hardware/interfaces/security/secureclock/aidl/Android.bp 2>&1 || true
           grep -R -l 'name: "update_metadata-protos"' system/update_engine 2>/dev/null | head -2 || true
           grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
           grep -n 'name: "libinit"' system/core/init/Android.bp 2>&1 | head -2 || true
@@ -441,6 +448,7 @@ jobs:
           copy_relink_rc ueventd.rc out/target/product/cannon/system/etc/ueventd.rc
           copy_relink_rc minadbd.rc out/target/product/cannon/system/etc/init/minadbd.rc
           copy_relink_rc keystore2.rc out/target/product/cannon/system/etc/init/keystore2.rc
+          copy_relink_rc lpdumpd.rc out/target/product/cannon/system/etc/init/lpdumpd.rc
           if [ ! -e out/target/product/cannon/system/etc/init/keystore2.rc ]; then
             mkdir -p out/target/product/cannon/system/etc/init
             : > out/target/product/cannon/system/etc/init/keystore2.rc
@@ -822,6 +830,7 @@ jobs:
           copy_relink_rc ueventd.rc out/target/product/cannon/system/etc/ueventd.rc
           copy_relink_rc minadbd.rc out/target/product/cannon/system/etc/init/minadbd.rc
           copy_relink_rc keystore2.rc out/target/product/cannon/system/etc/init/keystore2.rc
+          copy_relink_rc lpdumpd.rc out/target/product/cannon/system/etc/init/lpdumpd.rc
           if [ ! -e out/target/product/cannon/system/etc/init/keystore2.rc ]; then
             mkdir -p out/target/product/cannon/system/etc/init
             : > out/target/product/cannon/system/etc/init/keystore2.rc
