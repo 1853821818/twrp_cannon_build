@@ -441,9 +441,12 @@ jobs:
             ' system/core/fastboot/Android.bp > system/core/fastboot/Android.bp.tmp && mv system/core/fastboot/Android.bp.tmp system/core/fastboot/Android.bp
           fi
           # gatekeeperd 的 libgatekeeper_aidl 把 frameworks/base/core/java 当作 AIDL
-          # include_dir，精简 manifest 没有同步该目录。只补 GateKeeperResponse 的
-          # C++ parcelable 声明，避免拉入整个 frameworks/base。
-          if [ ! -f frameworks/base/core/java/android/service/gatekeeper/GateKeeperResponse.aidl ]; then
+          # include_dir，精简 manifest 没有同步该目录时，需要补 GateKeeperResponse
+          # 的 C++ parcelable 声明。但 system/core/gatekeeperd 自带同名 AIDL 时，
+          # 再补 frameworks/base 副本会触发 Duplicate files found，必须优先用自带版本。
+          if [ -f system/core/gatekeeperd/binder/android/service/gatekeeper/GateKeeperResponse.aidl ]; then
+            echo "GATEKEEPER_PARCELABLE_STUB_SKIPPED system_core_copy_present"
+          elif [ ! -f frameworks/base/core/java/android/service/gatekeeper/GateKeeperResponse.aidl ]; then
             mkdir -p frameworks/base/core/java/android/service/gatekeeper
             printf '%s\n' 'package android.service.gatekeeper;' '' 'parcelable GateKeeperResponse cpp_header "gatekeeper/GateKeeperResponse.h";' > frameworks/base/core/java/android/service/gatekeeper/GateKeeperResponse.aidl
             echo "GATEKEEPER_PARCELABLE_STUB_ADDED"
