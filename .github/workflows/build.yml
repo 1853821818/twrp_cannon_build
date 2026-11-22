@@ -442,6 +442,15 @@ jobs:
             printf '%s\n' 'package android.service.gatekeeper;' '' 'parcelable GateKeeperResponse cpp_header "gatekeeper/GateKeeperResponse.h";' > frameworks/base/core/java/android/service/gatekeeper/GateKeeperResponse.aidl
             echo "GATEKEEPER_PARCELABLE_STUB_ADDED"
           fi
+          # system/security/keystore 的 libkeystore-attestation-application-id
+          # 依赖 android.security.aaid_aidl-cpp，该 AIDL 接口定义在
+          # frameworks/base/keystore/aaid。精简 manifest 没有 frameworks/base，
+          # 只注入 aaid 子树，避免拉入整个 framework。
+          if [ ! -f frameworks/base/keystore/aaid/aidl/Android.bp ]; then
+            mkdir -p frameworks/base/keystore/aaid
+            cp -a "$GITHUB_WORKSPACE/scripts/frameworks_base_keystore_aaid/." frameworks/base/keystore/aaid/
+            echo "FRAMEWORKS_AAID_AIDL_ADDED"
+          fi
           # TWRP 14.1 的 gui/action.cpp 无条件引用 TW_OZIP_DECRYPT_KEY 宏，
           # 但精简构建没有定义该宏。没有 ozip_decrypt 二进制时该函数本来就
           # 会在前面直接 return 1，这里加条件编译保护即可。
