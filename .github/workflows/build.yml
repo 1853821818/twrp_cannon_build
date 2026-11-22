@@ -385,7 +385,7 @@ jobs:
           du -sh system/core 2>&1 || true
           # AOSP 14 的 libadbd_core/libadb_host/fastboot 依赖 generated_headers
           # "platform_tools_version"，但精简 manifest 没有定义该模块。这里生成一个
-          # 最小的 header library，并把 generated_headers 改为 header_libs。
+          # 最小的 header library，并把 adb 的 generated_headers 改为 header_libs。
           if [ -f packages/modules/adb/Android.bp ]; then
             mkdir -p packages/modules/adb/platform_tools_version_headers
             printf '%s\n' '#ifndef PLATFORM_TOOLS_VERSION_H' '#define PLATFORM_TOOLS_VERSION_H' '#define PLATFORM_TOOLS_VERSION "34.0.0"' '#endif' > packages/modules/adb/platform_tools_version_headers/platform_tools_version.h
@@ -395,8 +395,18 @@ jobs:
             fi
             sed -i 's/generated_headers: \["platform_tools_version"\],/header_libs: ["platform_tools_version"],/' packages/modules/adb/Android.bp
           fi
+          # libfastboot 本身已有 header_libs 列表，不能整行替换，否则 Soong 报属性重复。
+          # 在 libfastboot 块内删除 generated_headers，并把 platform_tools_version 追加到
+          # 已有 header_libs 列表。
           if [ -f system/core/fastboot/Android.bp ]; then
-            sed -i 's/generated_headers: \["platform_tools_version"\],/header_libs: ["platform_tools_version"],/' system/core/fastboot/Android.bp
+            awk '
+              /name: "libfastboot"/ { inblock=1 }
+              inblock && /generated_headers: \["platform_tools_version"\],/ { next }
+              inblock && /header_libs: \["platform_tools_version"\],/ { next }
+              inblock && /"libstorage_literals_headers",/ && !added { print; print "        \"platform_tools_version\","; added=1; next }
+              inblock && /^}/ { inblock=0 }
+              { print }
+            ' system/core/fastboot/Android.bp > system/core/fastboot/Android.bp.tmp && mv system/core/fastboot/Android.bp.tmp system/core/fastboot/Android.bp
           fi
           # 清掉可能由旧 soong/finder 生成的路径缓存，保证下一次扫描包含新克隆目录。
           rm -rf out/soong/.module_paths out/soong/.bpglob out/soong/.bpglob_intermediates
