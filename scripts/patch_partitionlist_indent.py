@@ -8,26 +8,39 @@ branch while keeping identical behavior.
 from pathlib import Path
 
 p = Path("bootable/recovery/gui/partitionlist.cpp")
-s = p.read_text()
+lines = p.read_text().splitlines(keepends=True)
 
-old = """\t\t\t\tif (mList.at(item_selected).selected)
-\t\t\t\t\tmList.at(item_selected).selected = 0;
-\t\t\t\telse {
-\t\t\t\t\tmList.at(item_selected).selected = 1;
-\t\t\t\t\tTWPartition* t_part = PartitionManager.Find_Partition_By_Path(mList.at(item_selected).Mount_Point);
-\t\t\t\t\tDataManager::SetValue("tw_is_slot_part", t_part != NULL ? (int) t_part->SlotSelect : 0);
-\t\t\t\t}
-"""
+old_block = [
+    "if (mList.at(item_selected).selected)",
+    "mList.at(item_selected).selected = 0;",
+    "else {",
+    "mList.at(item_selected).selected = 1;",
+    "TWPartition* t_part = PartitionManager.Find_Partition_By_Path(mList.at(item_selected).Mount_Point);",
+    'DataManager::SetValue("tw_is_slot_part", t_part != NULL ? (int) t_part->SlotSelect : 0);',
+    "}",
+]
 
-new = """\t\t\t\tmList.at(item_selected).selected = !mList.at(item_selected).selected;
-\t\t\t\tif (mList.at(item_selected).selected) {
-\t\t\t\t\tTWPartition* t_part = PartitionManager.Find_Partition_By_Path(mList.at(item_selected).Mount_Point);
-\t\t\t\t\tDataManager::SetValue("tw_is_slot_part", t_part != NULL ? (int) t_part->SlotSelect : 0);
-\t\t\t\t}
-"""
+patched = False
+for idx, line in enumerate(lines):
+    if line.strip() != old_block[0]:
+        continue
+    block = [x.strip() for x in lines[idx:idx + 7]]
+    if block != old_block:
+        continue
+    indent = line[:len(line) - len(line.lstrip())]
+    new_lines = [
+        indent + "mList.at(item_selected).selected = !mList.at(item_selected).selected;\n",
+        indent + "if (mList.at(item_selected).selected) {\n",
+        indent + "\tTWPartition* t_part = PartitionManager.Find_Partition_By_Path(mList.at(item_selected).Mount_Point);\n",
+        indent + '\tDataManager::SetValue("tw_is_slot_part", t_part != NULL ? (int) t_part->SlotSelect : 0);\n',
+        indent + "}\n",
+    ]
+    lines[idx:idx + 7] = new_lines
+    patched = True
+    break
 
-if old in s:
-    p.write_text(s.replace(old, new, 1))
+if patched:
+    p.write_text("".join(lines))
     print("PARTITIONLIST_INDENT_PATCHED")
 else:
     print("PARTITIONLIST_PATTERN_NOT_FOUND")
