@@ -442,15 +442,15 @@ jobs:
             printf '%s\n' 'package android.service.gatekeeper;' '' 'parcelable GateKeeperResponse cpp_header "gatekeeper/GateKeeperResponse.h";' > frameworks/base/core/java/android/service/gatekeeper/GateKeeperResponse.aidl
             echo "GATEKEEPER_PARCELABLE_STUB_ADDED"
           fi
-          # system/security/keystore 的 libkeystore-attestation-application-id
-          # 依赖 android.security.aaid_aidl-cpp，该 AIDL 接口定义原在
-          # frameworks/base/keystore/aaid。精简 manifest 没有 frameworks/base，
-          # 且该目录不在 Soong 扫描范围；把模块放到 system/security/keystore/aaid，
-          # 父 Android.bp 一定被解析，避免依赖缺失。
-          if [ ! -f system/security/keystore/aaid/Android.bp ]; then
-            mkdir -p system/security/keystore/aaid
-            cp -a "$GITHUB_WORKSPACE/scripts/keystore_aaid/." system/security/keystore/aaid/
-            echo "KEYSTORE_AAID_AIDL_ADDED $(find system/security/keystore/aaid -name '*.aidl' | wc -l) aidl"
+          # AOSP 14 的 system/security/keystore/Android.bp 中，
+          # libkeystore-attestation-application-id 的 srcs 引用了 filegroup
+          # :IKeyAttestationApplicationIdProvider.aidl。该 filegroup 和四个
+          # AIDL 定义原本在 frameworks/base/core/java/Android.bp；精简 manifest
+          # 没有 frameworks/base，补齐 filegroup 与 AIDL 文件，消除缺依赖。
+          if [ ! -f frameworks/base/core/java/Android.bp ]; then
+            mkdir -p frameworks/base/core/java
+            cp -a "$GITHUB_WORKSPACE/scripts/frameworks_base_core_java/." frameworks/base/core/java/
+            echo "FRAMEWORKS_KEYMASTER_AIDL_ADDED $(find frameworks/base/core/java/android/security/keymaster -name '*.aidl' | wc -l) aidl"
           fi
           # TWRP 14.1 的 gui/action.cpp 无条件引用 TW_OZIP_DECRYPT_KEY 宏，
           # 但精简构建没有定义该宏。没有 ozip_decrypt 二进制时该函数本来就

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, The Android Open Source Project
+ * Copyright (c) 2016, The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,9 @@
  * limitations under the License.
  */
 
-package android.security.keystore;
+package android.security.keymaster;
 
-import android.security.keystore.Signature;
-
-/**
- * @hide
- * This parcelable constitutes and excerpt from the PackageManager's PackageInfo for the purpose of
- * key attestation. It is part of the KeyAttestationApplicationId, which is used by
- * keystore to identify the caller of the keystore API towards a remote party.
+/* The cpp_header is relative to system/security/keystore/include
+ * Link against libkeystore_binder to make use of the native implementation of this Parcelable.
  */
-parcelable KeyAttestationPackageInfo {
-    String packageName;
-
-    long versionCode;
-
-    Signature[] signatures;
-}
+parcelable KeyAttestationApplicationId cpp_header "keystore/KeyAttestationApplicationId.h";
