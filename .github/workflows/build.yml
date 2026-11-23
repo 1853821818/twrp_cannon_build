@@ -452,6 +452,11 @@ jobs:
           # 的 memset 兼容补丁必须放在此之后，否则会因头文件尚不存在而中断。
           python3 $GITHUB_WORKSPACE/scripts/patch_cutils_memory.py
           grep -n 'android_memset16' system/core/libcutils/include/cutils/memory.h
+          # libsqlite 默认依赖 libandroidicu，但精简 manifest 没有 external/icu。
+          # 改用 AOSP 自带的 libsqlite3_android_noicu，并去掉 ICU 链接与宏，
+          # 只保留 TWRP 实际需要的 sqlite 基础能力。
+          python3 $GITHUB_WORKSPACE/scripts/patch_sqlite_noicu.py
+          grep -n 'libsqlite3_android_noicu' external/sqlite/dist/Android.bp
           # system/core 可能由上面的核心仓库兜底克隆后才出现，libinit 依赖裁剪
           # 必须放在兜底之后，否则会因 system/core/init/Android.bp 尚不存在而中断。
           python3 $GITHUB_WORKSPACE/scripts/patch_libinit_recovery.py
