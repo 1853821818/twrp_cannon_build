@@ -233,6 +233,10 @@ jobs:
           sed -i '/^int gr_init(std::initializer_list<GraphicsBackend> backends) {/a\  (void)backends;' bootable/recovery/minui/graphics.cpp
           grep -qF '(void)backends;' bootable/recovery/minui/graphics.cpp || { echo "MINUI_BACKENDS_UNUSED_PATCH_FAILED"; exit 1; }
           echo "MINUI_BACKENDS_UNUSED_PATCHED"
+          # TeamWin android-14 的 minuitwrp/graphics.cpp 仍引用旧 Android.mk 时代的
+          # OVERSCAN_PERCENT 宏，但 Soong Android.bp 没有定义它。按旧 minui
+          # Android.mk 的默认值补 0 兜底，避免 -Werror 下 undeclared identifier。
+          python3 $GITHUB_WORKSPACE/scripts/patch_minuitwrp_overscan.py
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
