@@ -100,6 +100,19 @@ jobs:
           # 它们覆盖AOSP版本，必须显式重新同步确保soong_ui.bash存在
           repo sync -j$(nproc) -c --no-tags build/make build/soong 2>&1 | tail -8
           ls -la build/soong/soong_ui.bash 2>&1 || echo "SOONG_UI_MISSING"
+          # TeamWin android-14 的 build/soong/scripts/Android.bp 缺 uffd_gc_utils，
+          # 而 TeamWin build/make 的 post_process_props 依赖它，补最小 python 库。
+          if ! grep -q 'name: "uffd_gc_utils"' build/soong/scripts/Android.bp 2>/dev/null; then
+            cp $GITHUB_WORKSPACE/scripts/uffd_gc_utils/uffd_gc_utils.py build/soong/scripts/uffd_gc_utils.py
+            cat >> build/soong/scripts/Android.bp <<'PYEOF'
+
+python_library_host {
+    name: "uffd_gc_utils",
+    srcs: ["uffd_gc_utils.py"],
+}
+PYEOF
+            echo "UFFD_GC_UTILS_ADDED"
+          fi
           # TeamWin android-14.1 的 build/make/core/Makefile 缺少 AOSP 的
           # merge-fc-files 规则，system/sepolicy 的 file_contexts.bin 会依赖一个
           # 没有任何生成规则的 file_contexts.modules.tmp，ninja 直接报
