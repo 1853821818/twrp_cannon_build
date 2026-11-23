@@ -227,6 +227,12 @@ jobs:
           # TWRP 14.1 gui/partitionlist.cpp 在 clang -Wmisleading-indentation 下报错，
           # 重写选中切换逻辑，行为不变且不再触发告警。
           python3 $GITHUB_WORKSPACE/scripts/patch_partitionlist_indent.py
+          # TeamWin android-14 的 minui graphics.cpp 中 gr_init(backends) 实际未使用
+          # backends 参数，-Werror -Wunused-parameter 会直接中断编译。保留函数接口，
+          # 只在函数体首行显式忽略该参数。
+          sed -i '/^int gr_init(std::initializer_list<GraphicsBackend> backends) {/a\  (void)backends;' bootable/recovery/minui/graphics.cpp
+          grep -qF '(void)backends;' bootable/recovery/minui/graphics.cpp || { echo "MINUI_BACKENDS_UNUSED_PATCH_FAILED"; exit 1; }
+          echo "MINUI_BACKENDS_UNUSED_PATCHED"
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
