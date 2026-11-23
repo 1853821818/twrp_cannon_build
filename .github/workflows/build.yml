@@ -267,6 +267,12 @@ jobs:
           ls frameworks/libs/net/common/netd/libnetdutils/include/netdutils \
              packages/modules/DnsResolver/include/dnsproxyd_protocol \
              packages/modules/DnsResolver/Android.bp
+          # libpixelflinger 的 CodeCache.cpp 直接以相对路径 include
+          # external/dlmalloc/malloc.c，精简 manifest 没有 external/dlmalloc。
+          # 只补这个单文件（公共域源码），不额外引入 Soong 模块。
+          mkdir -p external/dlmalloc
+          cp $GITHUB_WORKSPACE/scripts/dlmalloc_compat/malloc.c external/dlmalloc/malloc.c
+          ls -lh external/dlmalloc/malloc.c
           # frameworks/av/apex定义Media apex，引用已删的packages/modules/Media模块；apexd_testdata是测试数据。
           # recovery不依赖这些，删除避免soong报错
           rm -rf frameworks/av/apex system/apex/apexd/apexd_testdata
