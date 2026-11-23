@@ -392,6 +392,15 @@ jobs:
               echo "CORE_REPO_STILL_MISSING $path"
             fi
           done
+          # system/libvintf 依赖 packages/modules/Gki/libkver，但精简 manifest
+          # 不含 Gki 仓库。用仓库内置的 AOSP libkver 源码补一个最小模块，
+          # 保留 KernelRelease/KmiVersion 解析能力，避免拉入整个 GKI 工程。
+          if ! grep -q 'name: "libkver"' packages/modules/Gki/libkver/Android.bp 2>/dev/null; then
+            mkdir -p packages/modules/Gki/libkver
+            cp -a $GITHUB_WORKSPACE/scripts/gki_libkver/. packages/modules/Gki/libkver/
+            echo "LIBKVER_COMPAT_COPIED"
+          fi
+          grep -n 'name: "libkver"' packages/modules/Gki/libkver/Android.bp
           # hardware/interfaces 整仓包含大量 vendor HAL（configstore/graphics/keymaster 等），
           # 在精简 TWRP manifest 下会触发 "vendor can not link against platform" 的 Make 错误。
           # TWRP 需要 health 子树的 health@2.0-impl/libhealthservice 等依赖，
