@@ -277,9 +277,7 @@ jobs:
           cp $GITHUB_WORKSPACE/scripts/dlmalloc_compat/malloc.c external/dlmalloc/malloc.c
           ls -lh external/dlmalloc/malloc.c
           # AOSP 14 的 cutils/memory.h 已移除 android_memset16/32，但 TeamWin
-          # libpixelflinger 仍依赖它们。补头文件内联实现，避免改 libcutils 模块。
-          python3 $GITHUB_WORKSPACE/scripts/patch_cutils_memory.py
-          grep -n 'android_memset16' system/core/libcutils/include/cutils/memory.h
+          # libpixelflinger 仍依赖它们。补丁必须放在 system/core 兜底克隆之后执行。
           # frameworks/av/apex定义Media apex，引用已删的packages/modules/Media模块；apexd_testdata是测试数据。
           # recovery不依赖这些，删除避免soong报错
           rm -rf frameworks/av/apex system/apex/apexd/apexd_testdata
@@ -450,6 +448,10 @@ jobs:
           grep -n 'name: "libcutils"' system/core/libcutils/Android.bp 2>&1 | head -2 || true
           grep -n 'name: "libinit"' system/core/init/Android.bp 2>&1 | head -2 || true
           du -sh system/core 2>&1 || true
+          # system/core 可能由上面的核心仓库兜底克隆后才出现，cutils/memory.h
+          # 的 memset 兼容补丁必须放在此之后，否则会因头文件尚不存在而中断。
+          python3 $GITHUB_WORKSPACE/scripts/patch_cutils_memory.py
+          grep -n 'android_memset16' system/core/libcutils/include/cutils/memory.h
           # system/core 可能由上面的核心仓库兜底克隆后才出现，libinit 依赖裁剪
           # 必须放在兜底之后，否则会因 system/core/init/Android.bp 尚不存在而中断。
           python3 $GITHUB_WORKSPACE/scripts/patch_libinit_recovery.py
