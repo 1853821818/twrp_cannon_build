@@ -257,6 +257,12 @@ jobs:
           cp $GITHUB_WORKSPACE/scripts/fscrypt_policy_compat/fscrypt_policy.h bootable/recovery/fscrypt_policy.h
           cp $GITHUB_WORKSPACE/scripts/fscrypt_policy_compat/fscrypt_policy.h bootable/recovery/libtar/fscrypt_policy.h
           echo "FSCRYPT_POLICY_COMPAT_INSTALLED"
+          # TeamWin recovery 的 twrp.cpp / partition.cpp / partitionmanager.cpp 在
+          # TW_INCLUDE_CRYPTO 下调用 android::keystore::{copySqliteDb,Get_Password_Type,
+          # Decrypt_DE,Decrypt_User}。AOSP 14 的 system/vold 已删除 Decrypt.cpp，
+          # 直接使用会先缺 Decrypt.h、链接时再缺 Decrypt_* 符号。把 TeamWin vold
+          # 的 FBE 解密实现接入 libvold，保证不是只编译通过的空壳。
+          python3 $GITHUB_WORKSPACE/scripts/patch_vold_decrypt.py
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
@@ -430,10 +436,13 @@ jobs:
           # TWRP 需要 health 子树的 health@2.0-impl/libhealthservice 等依赖，
           # 以及 keymaster HIDL 3.0/4.0/4.1 接口与 4.0/4.1 support 库，
           # 供 libkeymaster4/libkeymaster4_1support 链接。
-          # 保留 health/boot/fastboot/security/keymaster 和根级 Android.bp/NOTICE/license。
+          # 保留 health/boot/fastboot/security/keymaster/confirmationui/gatekeeper/weaver
+          # 和根级 Android.bp/NOTICE/license。gatekeeper/weaver 的 1.0 HIDL 头
+          # 被 Decrypt.cpp / Weaver1.cpp 直接 include，TWRP 的 recovery 也显式
+          # 链接 android.hardware.gatekeeper@1.0 与 android.hardware.weaver@1.0。
           if [ -d hardware/interfaces ]; then
-            HI_PRUNED=$(find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security ! -name keymaster ! -name confirmationui | wc -l)
-            find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security ! -name keymaster ! -name confirmationui -exec rm -rf {} + 2>/dev/null || true
+            HI_PRUNED=$(find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security ! -name keymaster ! -name confirmationui ! -name gatekeeper ! -name weaver | wc -l)
+            find hardware/interfaces -maxdepth 1 -mindepth 1 -type d ! -name health ! -name boot ! -name fastboot ! -name security ! -name keymaster ! -name confirmationui ! -name gatekeeper ! -name weaver -exec rm -rf {} + 2>/dev/null || true
             # libkeymint_support 在 hardware/interfaces/security/keymint/support，
             # 是 TWRP FBE 解密的静态依赖；keystore2 的 android.security.compat
             # 还 import 了 sharedsecret-V1，必须保留 sharedsecret AIDL。
@@ -453,6 +462,14 @@ jobs:
               find hardware/interfaces/confirmationui -maxdepth 2 -mindepth 2 -type d \( -name default -o -name vts \) -exec rm -rf {} + 2>/dev/null || true
               echo "CONFIRMATIONUI_KEEP interfaces"
             fi
+            # gatekeeper/weaver 只保留 HIDL 1.0 接口与 HAL 库，移除 default 服务
+            # 和 vts，避免把 vendor 实现拉进 platform/recovery 链接。
+            for hidl_dir in gatekeeper weaver; do
+              if [ -d hardware/interfaces/$hidl_dir ]; then
+                find hardware/interfaces/$hidl_dir -maxdepth 2 -mindepth 2 -type d \( -name default -o -name vts \) -exec rm -rf {} + 2>/dev/null || true
+                echo "${hidl_dir^^}_KEEP interfaces"
+              fi
+            done
             # keymaster 只保留 HIDL 接口和 support 库；移除 vendor default 服务、
             # vts 测试和未使用的 keymaster AIDL，避免再次出现 vendor/platform 链接冲突。
             if [ -d hardware/interfaces/keymaster ]; then
