@@ -1,0 +1,4 @@
+python_library_host {
+    name: "uffd_gc_utils",
+    srcs: ["uffd_gc_utils.py"],
+}
