@@ -144,14 +144,16 @@ jobs:
           # manifest其实包含此project(目录已存在)，只是未在pdk组，优先repo sync拉取AOSP官方版本
           repo sync -j$(nproc) --force-sync -c --no-tags external/starlark-go 2>&1 | tail -8
           # 强制使用AOSP官方starlark-go：Android.bp必须含go-starlark-starlarkjson模块供soong解析
-          # repo sync/googlesource拉的可能是185字节占位Android.bp(无starlarkjson)，需验证并换清华源
+          # repo sync 可能只留下占位 Android.bp，从外网 clone 又会因 TUNA 排队/RPC 超时失败。
+          # 改用仓库内置的兼容包恢复，保证 rbcrun 与 Soong 每次都能拿到同一份源码。
           if ! grep -q "go-starlark-starlarkjson" external/starlark-go/Android.bp 2>/dev/null; then
-            echo "starlarkjson missing in Android.bp, cloning from TUNA..."
+            echo "starlark-go 不完整，使用内置兼容包恢复"
             rm -rf external/starlark-go
-            git clone --depth 1 https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/external/starlark-go.git external/starlark-go 2>&1 | tail -3 || \
-            git clone --depth 1 https://android.googlesource.com/platform/external/starlark-go external/starlark-go 2>&1 | tail -3
+            mkdir -p external/starlark-go
+            tar -xzf $GITHUB_WORKSPACE/scripts/starlark_go_compat.tar.gz -C external/starlark-go
           fi
-          grep -n "go-starlark-starlarkjson" external/starlark-go/Android.bp 2>&1 || echo "STARLARKJSON_MISSING"
+          test -f external/starlark-go/starlarkjson/json.go
+          grep -n "go-starlark-starlarkjson" external/starlark-go/Android.bp
           # release_config.scl依赖//build/bazel/utils:schema_validation.scl
           # TWRP精简同步可能缺该文件，先从AOSP源下载，失败则创建最小实现(只需validate函数)
           mkdir -p build/bazel/utils
@@ -213,10 +215,11 @@ jobs:
           # 用Go直接编译rbcrun(避免完整soong构建)，供release_config.mk调用
           cd build/make/tools/rbcrun
           if ! GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun > /tmp/rbcrun_build.log 2>&1; then
-            echo "rbcrun build failed; cloning upstream starlark-go and retry"
+            echo "rbcrun build failed; restoring vendored starlark-go and retry"
             tail -20 /tmp/rbcrun_build.log
             rm -rf ../../../../external/starlark-go
-            git clone --depth 1 https://github.com/google/starlark-go ../../../../external/starlark-go 2>&1 | tail -5
+            mkdir -p ../../../../external/starlark-go
+            tar -xzf $GITHUB_WORKSPACE/scripts/starlark_go_compat.tar.gz -C ../../../../external/starlark-go
             GOFLAGS=-mod=mod go build -o ~/android/twrp/out/rbcrun ./rbcrun > /tmp/rbcrun_build2.log 2>&1 || { tail -20 /tmp/rbcrun_build2.log; exit 1; }
           fi
           tail -20 /tmp/rbcrun_build.log 2>/dev/null || true
