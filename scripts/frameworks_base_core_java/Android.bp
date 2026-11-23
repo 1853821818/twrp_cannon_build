@@ -36,3 +36,44 @@ aidl_interface {
         },
     },
 }
+
+// system/vold 的 libvold_binder 通过 whole_static_libs 依赖
+// libincremental_aidl-cpp；该模块原定义在 frameworks/base/core/java/Android.bp。
+// 精简 manifest 没有同步 frameworks/base，这里补最小 AIDL 模块。
+filegroup {
+    name: "incremental_aidl",
+    srcs: [
+        "android/os/incremental/IIncrementalServiceConnector.aidl",
+        "android/os/incremental/IncrementalFileSystemControlParcel.aidl",
+    ],
+}
+
+cc_defaults {
+    name: "incremental_default",
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Wextra-semi",
+        "-Werror",
+        "-Wzero-as-null-pointer-constant",
+        "-DANDROID_BASE_UNIQUE_FD_DISABLE_IMPLICIT_CONVERSION",
+    ],
+    shared_libs: [
+        "libbinder",
+        "libutils",
+    ],
+    aidl: {
+        include_dirs: [
+            "frameworks/native/aidl/binder",
+        ],
+        export_aidl_headers: true,
+    },
+}
+
+cc_library {
+    name: "libincremental_aidl-cpp",
+    srcs: [
+        ":incremental_aidl",
+    ],
+    defaults: ["incremental_default"],
+}
