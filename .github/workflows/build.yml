@@ -257,12 +257,6 @@ jobs:
           cp $GITHUB_WORKSPACE/scripts/fscrypt_policy_compat/fscrypt_policy.h bootable/recovery/fscrypt_policy.h
           cp $GITHUB_WORKSPACE/scripts/fscrypt_policy_compat/fscrypt_policy.h bootable/recovery/libtar/fscrypt_policy.h
           echo "FSCRYPT_POLICY_COMPAT_INSTALLED"
-          # TeamWin recovery 的 twrp.cpp / partition.cpp / partitionmanager.cpp 在
-          # TW_INCLUDE_CRYPTO 下调用 android::keystore::{copySqliteDb,Get_Password_Type,
-          # Decrypt_DE,Decrypt_User}。AOSP 14 的 system/vold 已删除 Decrypt.cpp，
-          # 直接使用会先缺 Decrypt.h、链接时再缺 Decrypt_* 符号。把 TeamWin vold
-          # 的 FBE 解密实现接入 libvold，保证不是只编译通过的空壳。
-          python3 $GITHUB_WORKSPACE/scripts/patch_vold_decrypt.py
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
@@ -422,6 +416,20 @@ jobs:
               echo "CORE_REPO_STILL_MISSING $path"
             fi
           done
+          # system/vold 必须存在，否则无法把 FBE 解密实现接回 libvold。
+          if [ ! -f system/vold/Android.bp ]; then
+            echo "VOLD_FALLBACK_CLONE"
+            rm -rf system/vold
+            git clone --depth 1 -b android-14.0.0_r17 https://android.googlesource.com/platform/system/vold system/vold 2>&1 | tail -3 || \
+              git clone --depth 1 -b android-14.0.0_r17 https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/system/vold.git system/vold 2>&1 | tail -3 || true
+          fi
+          ls -l system/vold/Android.bp 2>&1
+          # TeamWin recovery 的 twrp.cpp / partition.cpp / partitionmanager.cpp 在
+          # TW_INCLUDE_CRYPTO 下调用 android::keystore::{copySqliteDb,Get_Password_Type,
+          # Decrypt_DE,Decrypt_User}。AOSP 14 的 system/vold 已删除 Decrypt.cpp，
+          # 直接使用会先缺 Decrypt.h、链接时再缺 Decrypt_* 符号。必须等核心仓库
+          # 补齐后再接入 TeamWin vold 的 FBE 解密实现，保证不是空壳。
+          python3 $GITHUB_WORKSPACE/scripts/patch_vold_decrypt.py
           # system/libvintf 依赖 packages/modules/Gki/libkver，但精简 manifest
           # 不含 Gki 仓库。用仓库内置的 AOSP libkver 源码补一个最小模块，
           # 保留 KernelRelease/KmiVersion 解析能力，避免拉入整个 GKI 工程。
