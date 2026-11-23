@@ -1,0 +1,30 @@
+// Copyright (C) 2020 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+// system/libvintf 的 generated_sources 依赖这个 xsd_config。
+// 原定义在 system/apex/apexd/Android.bp，但 apexd 服务在精简
+// manifest 下被整体删除；这里只恢复 XSD 生成器，不恢复 apexd。
+xsd_config {
+    name: "apex-info-list-tinyxml",
+    srcs: ["ApexInfoList.xsd"],
+    package_name: "com.android.apex",
+    api_dir: "apex-info-list-api",
+    gen_writer: true,
+    tinyxml: true,
+    root_elements: ["apex-info-list"],
+}

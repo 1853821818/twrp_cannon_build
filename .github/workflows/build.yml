@@ -292,6 +292,13 @@ jobs:
           rm -rf system/apex/apexd/sysprop
           cp -a $GITHUB_WORKSPACE/scripts/apex_sysprop system/apex/apexd/sysprop
           ls system/apex/apexd/sysprop/Android.bp system/apex/apexd/sysprop/ApexProperties.sysprop
+          # system/libvintf 的 generated_sources 依赖 apex-info-list-tinyxml，
+          # 该 xsd_config 原在 system/apex/apexd/Android.bp，随 apexd 删除而丢失。
+          # 只恢复 XSD 生成器与 API 定义，不恢复 apexd 服务及其测试。
+          mkdir -p system/apex/apexd/xsd
+          cp -a $GITHUB_WORKSPACE/scripts/apex_xsd/. system/apex/apexd/xsd/
+          ls system/apex/apexd/xsd/Android.bp system/apex/apexd/xsd/ApexInfoList.xsd
+          echo "APEX_INFO_LIST_XSD_RESTORED"
           # packages/modules/IPsec的apex(updatable APEX需min_sdk_version)recovery不需要
           rm -rf packages/modules/IPsec
           # gralloc.default 是 vendor 模块却链接 platform 的 libcutils/liblog/libc++；
