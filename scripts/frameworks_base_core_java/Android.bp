@@ -77,3 +77,10 @@ cc_library {
     ],
     defaults: ["incremental_default"],
 }
+
+// system/logging/logd 的 liblogd 通过 aidl.libs 依赖
+// ILogcatManagerService_aidl；该模块原定义在 frameworks/base/core/java/Android.bp。
+aidl_library {
+    name: "ILogcatManagerService_aidl",
+    srcs: ["android/os/logcat/ILogcatManagerService.aidl"],
+}
