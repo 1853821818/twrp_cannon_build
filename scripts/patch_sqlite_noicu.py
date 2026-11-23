@@ -9,6 +9,18 @@ libsqlite3_android_noicu; use it and drop the ICU shared libraries/flags.
 from pathlib import Path
 
 DIST = Path("external/sqlite/dist/Android.bp")
+ANDROID = Path("external/sqlite/android/Android.bp")
+
+
+def add_recovery_available(text, module_name, path):
+    marker = f'name: "{module_name}",'
+    if marker not in text:
+        raise SystemExit(f"missing module {module_name} in {path}")
+    idx = text.index(marker)
+    window = text[idx:idx + 300]
+    if "recovery_available" in window:
+        return text
+    return text[:idx + len(marker)] + "\n    recovery_available: true," + text[idx + len(marker):]
 
 if not DIST.exists():
     raise SystemExit(f"missing {DIST}")
@@ -73,9 +85,23 @@ for old, new, label in (
         raise SystemExit(f"sqlite patch anchor missing: {label}")
     text = text.replace(old, new, 1)
 
-DIST.write_text(text)
+DIST.write_text(
+    add_recovery_available(text, "libsqlite", str(DIST))
+)
+
+if not ANDROID.exists():
+    raise SystemExit(f"missing {ANDROID}")
+android_text = ANDROID.read_text()
+ANDROID.write_text(
+    add_recovery_available(android_text, "libsqlite3_android_noicu", str(ANDROID))
+)
+
+for target in (DIST, ANDROID):
+    if "recovery_available: true" not in target.read_text():
+        raise SystemExit(f"recovery_available not added to {target}")
 
 for line in DIST.read_text().splitlines():
     if "libandroidicu" in line and "exclude_shared_libs" not in line:
         raise SystemExit(f"libandroidicu still active in external/sqlite/dist/Android.bp: {line.strip()}")
 print("SQLITE_NOICU_PATCHED")
+print("SQLITE_RECOVERY_VARIANTS_ADDED libsqlite libsqlite3_android_noicu")
