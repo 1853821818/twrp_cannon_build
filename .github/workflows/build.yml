@@ -250,6 +250,13 @@ jobs:
           # AOSP 14 healthd charger UI 调用 ev_sync_sw_state，TeamWin minui
           # 只有 ev_sync_key_state，补上 SW 初始同步实现。
           python3 $GITHUB_WORKSPACE/scripts/patch_minui_sw_state.py
+          # TeamWin android-14 的 partitions.hpp / twrpTar.cpp / libtar 仍引用旧版
+          # system/vold/fscrypt_policy.h，但 AOSP 14 已删除该文件，libvold 也不再
+          # 导出 fscrypt_policy_* / lookup_ref_* / bytes_to_hex。补一份自包含兼容头，
+          # 同时放到 recovery 根目录和 libtar 目录，避免两个 include 路径找不到。
+          cp $GITHUB_WORKSPACE/scripts/fscrypt_policy_compat/fscrypt_policy.h bootable/recovery/fscrypt_policy.h
+          cp $GITHUB_WORKSPACE/scripts/fscrypt_policy_compat/fscrypt_policy.h bootable/recovery/libtar/fscrypt_policy.h
+          echo "FSCRYPT_POLICY_COMPAT_INSTALLED"
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
