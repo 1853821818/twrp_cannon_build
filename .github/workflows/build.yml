@@ -252,6 +252,21 @@ jobs:
                 packages/modules/Uwb packages/modules/HealthFitness packages/modules/DnsResolver \
                 packages/modules/Nfc packages/modules/TimeZoneData packages/modules/RuntimeI18n \
                 packages/modules/RemoteKeyProvisioning packages/modules/Virtualization
+          # libnetd_client 需要 DnsProxydProtocol.h 和 netdutils 头文件，但精简 manifest
+          # 没同步 frameworks/libs/net，且 DnsResolver 刚被删除。这里只补它实际用到的
+          # 最小头文件与 dnsproxyd_protocol_headers 模块，不恢复整个网络服务。
+          mkdir -p frameworks/libs/net/common/netd/libnetdutils/include/netdutils
+          cp $GITHUB_WORKSPACE/scripts/netd_client_compat/ResponseCode.h \
+             frameworks/libs/net/common/netd/libnetdutils/include/netdutils/ResponseCode.h
+          cp $GITHUB_WORKSPACE/scripts/netd_client_compat/Stopwatch.h \
+             frameworks/libs/net/common/netd/libnetdutils/include/netdutils/Stopwatch.h
+          mkdir -p packages/modules/DnsResolver/include/dnsproxyd_protocol
+          cp $GITHUB_WORKSPACE/scripts/netd_client_compat/DnsProxydProtocol.h \
+             packages/modules/DnsResolver/include/dnsproxyd_protocol/DnsProxydProtocol.h
+          cp $GITHUB_WORKSPACE/scripts/netd_client_compat/Android.bp packages/modules/DnsResolver/Android.bp
+          ls frameworks/libs/net/common/netd/libnetdutils/include/netdutils \
+             packages/modules/DnsResolver/include/dnsproxyd_protocol \
+             packages/modules/DnsResolver/Android.bp
           # frameworks/av/apex定义Media apex，引用已删的packages/modules/Media模块；apexd_testdata是测试数据。
           # recovery不依赖这些，删除避免soong报错
           rm -rf frameworks/av/apex system/apex/apexd/apexd_testdata
