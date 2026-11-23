@@ -1,4 +1,7 @@
 python_library_host {
     name: "uffd_gc_utils",
     srcs: ["uffd_gc_utils.py"],
+    visibility: [
+        "//build/make/tools:__subpackages__",
+    ],
 }
