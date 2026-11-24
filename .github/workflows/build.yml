@@ -430,6 +430,10 @@ jobs:
           # 直接使用会先缺 Decrypt.h、链接时再缺 Decrypt_* 符号。必须等核心仓库
           # 补齐后再接入 TeamWin vold 的 FBE 解密实现，保证不是空壳。
           python3 $GITHUB_WORKSPACE/scripts/patch_vold_decrypt.py
+          # TeamWin recovery android-14 仍引用旧 vold 的 FDE API，但 TeamWin vold
+          # android-14 的 cryptfs.h 已不声明、libvold 也不实现这些符号。
+          # 本机是 FBE，补最小声明/空实现让 recovery 能编译链接，不伪造 FDE 解密。
+          python3 $GITHUB_WORKSPACE/scripts/patch_recovery_fde_compat.py
           # system/libvintf 依赖 packages/modules/Gki/libkver，但精简 manifest
           # 不含 Gki 仓库。用仓库内置的 AOSP libkver 源码补一个最小模块，
           # 保留 KernelRelease/KmiVersion 解析能力，避免拉入整个 GKI 工程。
