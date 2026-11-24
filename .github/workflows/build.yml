@@ -434,9 +434,9 @@ jobs:
           # android-14 的 cryptfs.h 已不声明、libvold 也不实现这些符号。
           # 本机是 FBE，补最小声明/空实现让 recovery 能编译链接，不伪造 FDE 解密。
           python3 $GITHUB_WORKSPACE/scripts/patch_recovery_fde_compat.py
-          # TeamWin android-14 分支的 install/install.cpp 与 install/adb_install.cpp
-          # 仍是旧 API，和同分支 install.h/otautil 头不一致；TWRP 实际安装走
-          # libtwrpinstall/twrp_sideload，这两个 AOSP 源码不参与运行，移除避免误编译。
+          # TeamWin android-14 分支的 install/install.cpp、install/adb_install.cpp、
+          # install/wipe_data.cpp 仍是旧 API，和同分支 install.h/otautil 头不一致；TWRP 实际安装走
+          # libtwrpinstall/twrp_sideload，这些 AOSP 源码不参与运行，移除避免误编译。
           python3 $GITHUB_WORKSPACE/scripts/patch_drop_aosp_install.py
           # system/libvintf 依赖 packages/modules/Gki/libkver，但精简 manifest
           # 不含 Gki 仓库。用仓库内置的 AOSP libkver 源码补一个最小模块，
