@@ -612,6 +612,50 @@ jobs:
           # 环境变量设置会丢失,soong_ui默认aosp_arm导致cleanspec找make_vars-aosp_arm.mk缺失)
           lunch twrp_cannon-ap1a-eng >/dev/null 2>&1
           echo "TARGET_PRODUCT=$TARGET_PRODUCT TARGET_BUILD_VARIANT=$TARGET_BUILD_VARIANT"
+          # TWRP ramdisk 打包规则会从 system/etc/selinux 和 vendor/etc/selinux
+          # 拷贝 plat_service_contexts / plat_hwservice_contexts /
+          # plat_keystore2_key_contexts / vndservice_contexts /
+          # vendor_hwservice_contexts。twrp-14 精简 manifest 没有安装这些
+          # sepolicy 上下文文件的规则，ninja 执行到 98% 时 cp 失败。
+          # 设备树自带这些已编译上下文，直接预置到目标目录；缺失时用空文件兜底。
+          stage_sepolicy_context() {
+            name="$1"; dst="$2"
+            src="device/xiaomi/cannon/prebuilt/$name"
+            if [ -f "$src" ]; then
+              cp "$src" "$dst"
+            else
+              : > "$dst"
+              echo "SEPOLICY_CONTEXT_EMPTY $name"
+            fi
+          }
+          stage_recovery_sepolicy_contexts() {
+            mkdir -p out/target/product/cannon/system/etc/selinux \
+                     out/target/product/cannon/vendor/etc/selinux
+            for f in plat_file_contexts plat_property_contexts plat_service_contexts \
+                     plat_hwservice_contexts plat_keystore2_key_contexts \
+                     product_file_contexts product_property_contexts product_service_contexts \
+                     product_hwservice_contexts product_keystore2_key_contexts \
+                     system_ext_file_contexts system_ext_property_contexts \
+                     system_ext_service_contexts system_ext_hwservice_contexts \
+                     system_ext_keystore2_key_contexts; do
+              stage_sepolicy_context "$f" "out/target/product/cannon/system/etc/selinux/$f"
+            done
+            for f in vendor_file_contexts vendor_property_contexts vendor_service_contexts \
+                     vendor_hwservice_contexts vendor_keystore2_key_contexts vndservice_contexts; do
+              stage_sepolicy_context "$f" "out/target/product/cannon/vendor/etc/selinux/$f"
+            done
+            echo "SEPOLICY_CONTEXTS_STAGED"
+          }
+          if [ ! -f out/target/product/cannon/system/etc/mke2fs.conf ]; then
+            mkdir -p out/target/product/cannon/system/etc
+            src=$(find external -type f -name mke2fs.conf 2>/dev/null | head -1)
+            if [ -n "$src" ]; then
+              cp "$src" out/target/product/cannon/system/etc/mke2fs.conf
+            else
+              : > out/target/product/cannon/system/etc/mke2fs.conf
+            fi
+            echo "MKE2FS_CONF_STAGED ${src:-empty}"
+          fi
           # TWRP recovery不编译vendor，无需VNDK。make命令行强制KEEP_VNDK=false+BOARD_VNDK_VERSION空
           # 命令行优先级最高，覆盖makefile里的设置，避免board_config检查VNDK 34 prebuilt
           # pipefail防止make失败被tail吞掉退出码导致误报success；再显式校验recovery.img生成
@@ -633,6 +677,7 @@ jobs:
           for f in plat_file_contexts product_file_contexts system_ext_file_contexts odm_file_contexts vendor_file_contexts plat_property_contexts product_property_contexts system_ext_property_contexts odm_property_contexts vendor_property_contexts plat_service_contexts product_service_contexts system_ext_service_contexts odm_service_contexts vendor_service_contexts plat_hwservice_contexts product_hwservice_contexts system_ext_hwservice_contexts odm_hwservice_contexts vendor_hwservice_contexts plat_keystore2_key_contexts product_keystore2_key_contexts system_ext_keystore2_key_contexts odm_keystore2_key_contexts vendor_keystore2_key_contexts vndservice_contexts file_contexts; do
             [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
           done
+          stage_recovery_sepolicy_contexts
           # TWRP 的 relink_binaries 依赖 system/etc/init/hwservicemanager.rc；
           # 精简 manifest 下该 rc 没有进入 install 规则，直接从源码复制真实 rc 补位。
           if [ -f system/hwservicemanager/hwservicemanager.rc ]; then
@@ -1036,6 +1081,7 @@ jobs:
           for f in plat_file_contexts product_file_contexts system_ext_file_contexts odm_file_contexts vendor_file_contexts plat_property_contexts product_property_contexts system_ext_property_contexts odm_property_contexts vendor_property_contexts plat_service_contexts product_service_contexts system_ext_service_contexts odm_service_contexts vendor_service_contexts plat_hwservice_contexts product_hwservice_contexts system_ext_hwservice_contexts odm_hwservice_contexts vendor_hwservice_contexts plat_keystore2_key_contexts product_keystore2_key_contexts system_ext_keystore2_key_contexts odm_keystore2_key_contexts vendor_keystore2_key_contexts vndservice_contexts file_contexts; do
             [ -f "device/xiaomi/cannon/prebuilt/$f" ] && cp "device/xiaomi/cannon/prebuilt/$f" "out/target/product/cannon/recovery/root/$f"
           done
+          stage_recovery_sepolicy_contexts
           # 第3步前再补一次 hwservicemanager.rc / xml，防止 soong_ui 重建接口时清掉。
           if [ -f system/hwservicemanager/hwservicemanager.rc ]; then
             mkdir -p out/target/product/cannon/system/etc/init
