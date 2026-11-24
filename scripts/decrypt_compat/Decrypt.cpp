@@ -317,8 +317,6 @@ namespace keystore {
 #define SYNTHETIC_PASSWORD_VERSION_V2 2
 #define SYNTHETIC_PASSWORD_VERSION_V3 3
 #define SYNTHETIC_PASSWORD_PASSWORD_BASED 0
-#define SYNTHETIC_PASSWORD_KEY_PREFIX "USRSKEY_synthetic_password_"
-#define USR_PRIVATE_KEY_PREFIX "USRPKEY_synthetic_password_"
 #define PASSWORD_TOKEN_SIZE 32
 #define GK_ERROR *gkResponse = GKResponse::error(), Status::ok()
 
@@ -393,9 +391,7 @@ namespace keystore {
 			* https://android.googlesource.com/platform/frameworks/base/+/android-8.0.0_r23/keystore/java/android/security/keystore/AndroidKeyStoreAuthenticatedAESCipherSpi.java#297
 			* https://android.googlesource.com/platform/frameworks/base/+/android-8.0.0_r23/keystore/java/android/security/keystore/AndroidKeyStoreAuthenticatedAESCipherSpi.java#216 */
 			// When using secdis (aka not weaver) you must supply an auth token to the keystore prior to the begin operation
-			int32_t ret;
 			size_t maclen = 128;
-			unsigned char* iv = (unsigned char*)byteptr; // The IV is the first 12 bytes of the spblob
 			::keystore::hidl_vec<uint8_t> iv_hidlvec;
 			iv_hidlvec.setToExternal((unsigned char*)byteptr, 12);
 			// printf("iv: "); output_hex((const unsigned char*)iv, 12); printf("\n");
@@ -403,7 +399,6 @@ namespace keystore {
 			KeystoreInfo keystore_info;
 			std::string handle = keystore_info.getHandle(user_id);
 			std::string keystore_alias = keystore_info.getAlias(handle);
-			int32_t error_code;
 			unsigned char* cipher_text = (unsigned char*)byteptr + 12; // The cipher text comes immediately after the IV
 			std::string cipher_text_str(byteptr, byteptr + spblob_data.size() - 14);
 			::keystore::hidl_vec<uint8_t> cipher_text_hidlvec;
@@ -571,7 +566,6 @@ bool Decrypt_User_Synth_Pass(const userid_t user_id, const std::string& Password
 	char spblob_path_char[PATH_MAX];
 	sprintf(spblob_path_char, "/data/system_de/%d/spblob/", user_id);
 	std::string spblob_path = spblob_path_char;
-	long handle = 0;
 	// Get the handle: https://android.googlesource.com/platform/frameworks/base/+/android-8.0.0_r23/services/core/java/com/android/server/locksettings/LockSettingsService.java#2017
 	KeystoreInfo keystore_info;
 	std::string handle_str = keystore_info.getHandle(user_id);
@@ -665,8 +659,6 @@ bool Decrypt_User_Synth_Pass(const userid_t user_id, const std::string& Password
 		memcpy((void*)&application_id[0], (void*)&password_token[0], PASSWORD_TOKEN_SIZE);
 		memcpy((void*)&application_id[PASSWORD_TOKEN_SIZE], secdiscardable, SHA512_DIGEST_LENGTH);
 		if (Password != "!") {
-			int ret = -1;
-			bool request_reenroll = false;
 			android::sp<android::hardware::gatekeeper::V1_0::IGatekeeper> gk_device;
 			gk_device = ::android::hardware::gatekeeper::V1_0::IGatekeeper::getService();
 			if (gk_device == nullptr) {
@@ -835,7 +827,6 @@ extern "C" bool Decrypt_User(const userid_t user_id, const std::string& Password
 		printf("Failed to read '%s'\n", filename.c_str());
 		return false;
 	}
-    bool should_reenroll;
 	bool request_reenroll = false;
 	android::sp<android::hardware::gatekeeper::V1_0::IGatekeeper> gk_device;
 	gk_device = ::android::hardware::gatekeeper::V1_0::IGatekeeper::getService();
