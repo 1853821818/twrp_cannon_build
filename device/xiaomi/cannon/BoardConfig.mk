@@ -23,6 +23,12 @@ TARGET_2ND_CPU_VARIANT := generic
 TARGET_2ND_CPU_VARIANT_RUNTIME := cortex-a55
 
 # Bootloader
+# SELinux
+# 精简 TWRP manifest 没有 product 级 BOARD_SEPOLICY_VERS，
+# system/sepolicy 的 plat_mapping_file 会生成 "-n  -o ..." 空版本参数，
+# version_policy 直接报 Unknown arguments supplied。按 AOSP 14 平台策略版本补上。
+BOARD_SEPOLICY_VERS := 34.0
+
 TARGET_NO_BOOTLOADER := true
 PRODUCT_PLATFORM := mt6853
 TARGET_BOARD_PLATFORM := $(PRODUCT_PLATFORM)
