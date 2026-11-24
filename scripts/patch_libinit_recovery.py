@@ -34,5 +34,14 @@ if old_xml in s:
     s = s.replace(old_xml, "", 1)
     changed.append("libxml2")
 
+# 精简树的 libinit 由 Make 以默认变体拉入，不会自动带 recovery 变体的
+# -DRECOVERY；init.cpp 在非 RECOVERY 下会 include 由已删除 apexd 生成的
+# com_android_apex.h。显式给 libinit 加 -DRECOVERY，走 recovery 分支。
+libinit_marker = 'cc_library_static {\n    name: "libinit",'
+libinit_with_flag = libinit_marker + '\n    cflags: ["-DRECOVERY"],'
+if libinit_marker in s and libinit_with_flag not in s:
+    s = s.replace(libinit_marker, libinit_with_flag, 1)
+    changed.append("recovery_flag")
+
 p.write_text(s)
 print("LIBINIT_RECOVERY_TRIMMED " + ",".join(changed) if changed else "LIBINIT_PATTERN_NOT_FOUND")
