@@ -555,6 +555,9 @@ jobs:
           # 去掉该能力避免拉入整个 ART 依赖链。
           python3 $GITHUB_WORKSPACE/scripts/patch_libunwindstack_nodex.py
           grep -n 'UDEXFILE_SUPPORT' system/unwinding/libunwindstack/Android.bp | head
+          # linker 会通过 libdebuggerd_handler_fallback 拉入 libdebuggerd；
+          # 精简树没有 ART，libdebuggerd 的 libdexfile_support/libdexfile 必须去掉。
+          python3 $GITHUB_WORKSPACE/scripts/patch_libdebuggerd_nodex.py
           # system/core 可能由上面的核心仓库兜底克隆后才出现，libinit 依赖裁剪
           # 必须放在兜底之后，否则会因 system/core/init/Android.bp 尚不存在而中断。
           python3 $GITHUB_WORKSPACE/scripts/patch_libinit_recovery.py

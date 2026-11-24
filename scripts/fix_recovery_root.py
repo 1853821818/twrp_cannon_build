@@ -116,12 +116,33 @@ def main() -> int:
     index = LibIndex(search)
 
     # 1. linker64 -----------------------------------------------------------------
+    def resolve_linker(c: Path) -> Path | None:
+        if c.is_file() and not c.is_symlink():
+            return c
+        if c.is_symlink():
+            real = c.resolve()
+            if real.is_file():
+                return real
+            # Soong installs system/bin/linker64 as a symlink into the runtime APEX:
+            # /apex/com.android.runtime/bin/linker64. Resolve that inside the product out tree.
+            target = os.readlink(c)
+            if target.startswith("/apex/"):
+                rel = target.lstrip("/")
+                for prod in Path("out/target/product").glob("*"):
+                    for base in (prod / "system", prod, prod / "recovery/root"):
+                        candidate = base / rel
+                        if candidate.is_file():
+                            return candidate
+        return None
+
     linker = None
     candidates = list(Path("out/target/product").glob("*/system/bin/linker64"))
+    candidates += list(Path("out/target/product").glob("*/system/apex/com.android.runtime/bin/linker64"))
+    candidates += list(Path("out/target/product").glob("*/recovery/root/system/bin/linker64"))
     candidates += [bindir / "linker64", out / "system/bin/linker64"]
     for c in candidates:
-        if c.is_file():
-            linker = c
+        linker = resolve_linker(c)
+        if linker is not None:
             break
     if linker is None:
         print("RECOVERY_LINKER64_MISSING", file=sys.stderr)
