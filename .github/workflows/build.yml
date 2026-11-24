@@ -1013,6 +1013,7 @@ jobs:
           tail -80 /tmp/init_build.log
           find out/target/product -path '*/system/bin/init' -ls 2>/dev/null | head -10
           find out/target/product -path '*/system/bin/linker64' -ls 2>/dev/null | head -10
+          find out/target/product -path '*/system/bin/bootstrap/linker64' -ls 2>/dev/null | head -10
           echo "=== 第3步: 重跑make生成recovery.img ==="
           # build.ninja 重建后会清理 host bin，checkfc 必须再写一次占位。
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/checkfc
@@ -1213,7 +1214,7 @@ jobs:
           test -f out/target/product/cannon/recovery.img
           ls -lh out/target/product/cannon/recovery.img
           echo "=== 最终 recovery root 关键文件 ==="
-          for f in system/bin/init system/bin/linker64 system/bin/recovery system/lib64/libc.so system/lib64/libbase.so system/etc/init/hw/init.rc system/bin/adbd; do
+          for f in system/bin/init system/bin/linker64 system/bin/bootstrap/linker64 system/bin/recovery system/lib64/libc.so system/lib64/libbase.so system/etc/init/hw/init.rc system/bin/adbd; do
             ls -lh "out/target/product/cannon/recovery/root/$f" 2>&1 || true
           done
 

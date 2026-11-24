@@ -137,9 +137,15 @@ def main() -> int:
 
     linker = None
     candidates = list(Path("out/target/product").glob("*/system/bin/linker64"))
+    # Android 14 installs the real bootstrap linker under system/bin/bootstrap;
+    # system/bin/linker64 is only an absolute symlink into /apex/com.android.runtime.
+    candidates += list(Path("out/target/product").glob("*/system/bin/bootstrap/linker64"))
     candidates += list(Path("out/target/product").glob("*/system/apex/com.android.runtime/bin/linker64"))
     candidates += list(Path("out/target/product").glob("*/recovery/root/system/bin/linker64"))
-    candidates += [bindir / "linker64", out / "system/bin/linker64"]
+    soong_linker_root = Path("out/soong/.intermediates/bionic/linker")
+    if soong_linker_root.is_dir():
+        candidates += list(soong_linker_root.rglob("linker64"))
+    candidates += [bindir / "bootstrap/linker64", bindir / "linker64", out / "system/bin/linker64"]
     for c in candidates:
         linker = resolve_linker(c)
         if linker is not None:
@@ -147,10 +153,15 @@ def main() -> int:
     if linker is None:
         print("RECOVERY_LINKER64_MISSING", file=sys.stderr)
         return 1
-    dst_linker = root / "system/bin/linker64"
-    dst_linker.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(linker, dst_linker)
-    print(f"RECOVERY_LINKER64 {linker} -> {dst_linker}")
+    # init and recovery may use either PT_INTERP: /system/bin/bootstrap/linker64
+    # (bootstrap executables) or /system/bin/linker64. Install the same real ELF at both.
+    for rel in ("system/bin/linker64", "system/bin/bootstrap/linker64"):
+        dst_linker = root / rel
+        dst_linker.parent.mkdir(parents=True, exist_ok=True)
+        if dst_linker.is_symlink() or dst_linker.exists():
+            dst_linker.unlink()
+        shutil.copy2(linker, dst_linker)
+        print(f"RECOVERY_LINKER64 {linker} -> {dst_linker}")
 
     # 2. init ---------------------------------------------------------------------
     init_src = Path(args.init) if args.init else None
