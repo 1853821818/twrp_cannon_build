@@ -278,6 +278,9 @@ jobs:
           # android.security.*-ndk 与 android.system.keystore2-V3-ndk。
           # 不改名会导致 libtar 链接到不存在的 .so。
           python3 $GITHUB_WORKSPACE/scripts/patch_twrp_security_aidl.py
+          # recovery 链接还引用了 authsecret/oemlock 与 libandroidicu.recovery；
+          # 本精简树不构建这三者，且 recovery 源码未使用其符号，移除引用。
+          python3 $GITHUB_WORKSPACE/scripts/patch_twrp_unused_recovery_libs.py
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
