@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
-"""Fill the empty platform sepolicy version used by se_versioned_policy.
+"""Pin every versioned sepolicy mapping target to AOSP 14's 34.0.
 
-The TWRP minimal manifest's build/make tree does not populate
-PLATFORM_SEPOLICY_VERSION (TeamWin's build/make lacks the AOSP 14
-sepolicy_major_vers/sepolicy_minor_vers calculation), so Soong passes
-an empty string after -n to version_policy and the build stops at
-plat_mapping_file.  Pin the current-version mapping modules to AOSP 14's
-platform policy version (34.0) explicitly.
+TeamWin's minimal twrp-14 build/make tree does not populate
+PLATFORM_SEPOLICY_VERSION or BOARD_SEPOLICY_VERS into Soong (even when
+BOARD_SEPOLICY_VERS is set in BoardConfig.mk), so both
+PlatformSepolicyVersion() and BoardSepolicyVers() resolve to an empty
+string.  versioned_policy then invokes:
+
+    version_policy -b ... -n  -o ...
+
+and version_policy fails with "Unknown arguments supplied".
+
+Replace all "current" and "vendor" version markers in the top-level
+system/sepolicy/Android.bp with the AOSP 14 platform policy version
+34.0, which is the version this recovery build targets.  microdroid
+sepolicy is not built for TWRP and is left untouched.
 """
 from pathlib import Path
 import sys
@@ -17,13 +25,17 @@ if not p.exists():
     sys.exit(1)
 
 s = p.read_text()
-old = 'version: "current"'
-new = 'version: "34.0"'
-count = s.count(old)
-if count == 0:
+counts = {}
+for marker, target in (('"current"', '"34.0"'), ('"vendor"', '"34.0"')):
+    old = f'version: {marker}'
+    count = s.count(old)
+    counts[marker.strip('"')] = count
+    s = s.replace(old, f'version: {target}')
+
+if not any(counts.values()):
     print("SEPOLICY_VERSION_ALREADY_SET")
     sys.exit(0)
 
-s = s.replace(old, new)
 p.write_text(s)
-print(f"SEPOLICY_VERSION_FALLBACK_APPLIED {count}")
+print("SEPOLICY_VERSION_FALLBACK_APPLIED "
+      f"current={counts['current']} vendor={counts['vendor']}")

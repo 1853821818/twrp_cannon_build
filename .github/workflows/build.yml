@@ -202,12 +202,13 @@ jobs:
       - name: Patch sepolicy version fallback
         run: |
           cd ~/android/twrp
-          # TeamWin twrp-14 的 build/make 没有 AOSP 14 的 sepolicy_major_vers/
-          # sepolicy_minor_vers 计算，PLATFORM_SEPOLICY_VERSION 为空，导致
-          # se_versioned_policy 生成 "-n  -o ..." 空版本参数并失败。这里把
-          # system/sepolicy/Android.bp 中 version: "current" 的映射目标显式钉到 34.0。
+          # TeamWin twrp-14 的 build/make 没有把 PLATFORM_SEPOLICY_VERSION 和
+          # BOARD_SEPOLICY_VERS 传给 Soong，PlatformSepolicyVersion()/
+          # BoardSepolicyVers() 都解析为空，se_versioned_policy 生成
+          # "-n  -o ..." 空版本参数并失败。这里把 system/sepolicy/Android.bp
+          # 中 version: "current" 和 version: "vendor" 的映射目标显式钉到 34.0。
           python3 $GITHUB_WORKSPACE/scripts/patch_sepolicy_version.py
-          grep -n 'version: "34.0"' system/sepolicy/Android.bp | head -3
+          grep -n 'version: "34.0"' system/sepolicy/Android.bp | head -10
 
       - name: Copy device tree
         run: |
