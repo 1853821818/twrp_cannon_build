@@ -272,6 +272,12 @@ jobs:
           # Android 14 clang 把它当作 -Werror,-Wdeprecated-non-prototype 错误。
           # 改成 ANSI C 原型定义，行为不变。
           python3 $GITHUB_WORKSPACE/scripts/patch_libtar_knr.py
+          # TeamWin 的 Android.mk 仍写 Android 11 时代的
+          # android.security.*-ndk_platform / keystore2-V1-ndk_platform。
+          # AOSP 14 在 system/security/keystore2/aidl 生成的是
+          # android.security.*-ndk 与 android.system.keystore2-V3-ndk。
+          # 不改名会导致 libtar 链接到不存在的 .so。
+          python3 $GITHUB_WORKSPACE/scripts/patch_twrp_security_aidl.py
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
