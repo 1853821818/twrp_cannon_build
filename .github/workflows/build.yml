@@ -1001,14 +1001,15 @@ jobs:
           # 在 ALLOW_MISSING_DEPENDENCIES 下会因为引用的可选模块缺失而被静默跳过，
           # 导致 recovery/root 只有 recovery 本体，没有 init/linker/共享库。
           # 先显式构建 A14 init_second_stage，再由 fix_recovery_root.py 补齐闭包。
-          echo "=== 预编译 init_second_stage(补齐 recovery root 的 init/linker) ==="
+          echo "=== 预编译 init_second_stage + linker(补齐 recovery root 的 init/linker) ==="
           set +e
-          build/soong/soong_ui.bash --make-mode init_second_stage -j$(nproc)               KEEP_VNDK=false BOARD_VNDK_VERSION= BUILD_BROKEN_DISABLE_BAZEL=true               > /tmp/init_build.log 2>&1
+          build/soong/soong_ui.bash --make-mode init_second_stage linker -j$(nproc)               KEEP_VNDK=false BOARD_VNDK_VERSION= BUILD_BROKEN_DISABLE_BAZEL=true               > /tmp/init_build.log 2>&1
           INIT_BUILD_RC=$?
           set -e
           echo "INIT_BUILD_RC=$INIT_BUILD_RC"
           tail -80 /tmp/init_build.log
           find out/target/product -path '*/system/bin/init' -ls 2>/dev/null | head -10
+          find out/target/product -path '*/system/bin/linker64' -ls 2>/dev/null | head -10
           echo "=== 第3步: 重跑make生成recovery.img ==="
           # build.ninja 重建后会清理 host bin，checkfc 必须再写一次占位。
           printf '#!/bin/sh\nexit 0\n' > out/host/linux-x86/bin/checkfc
