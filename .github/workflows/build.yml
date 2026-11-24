@@ -1206,7 +1206,7 @@ jobs:
           # 用产品 out 树里的真实库补齐 recovery root；脚本会做 DT_NEEDED 闭包，
           # 缺任何一个库都会打印 RECOVERY_LIBS_MISSING 并失败，避免再上传不可启动镜像。
           echo "=== 补齐 recovery root(init/linker/共享库/init.rc) ==="
-          python3 $GITHUB_WORKSPACE/scripts/fix_recovery_root.py               --root out/target/product/cannon/recovery/root               --out out/target/product/cannon               --bindir out/target/product/cannon/system/bin
+          python3 $GITHUB_WORKSPACE/scripts/fix_recovery_root.py               --root out/target/product/cannon/recovery/root               --out out/target/product/cannon               --bindir out/target/product/cannon/system/bin               --fallback-lib $GITHUB_WORKSPACE/scripts/recovery_root_compat/a12_libs
           echo "=== 重新打包 recovery.img ==="
           rm -f out/target/product/cannon/recovery.img
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc)               KEEP_VNDK=false BOARD_VNDK_VERSION= BUILD_BROKEN_DISABLE_BAZEL=true               > /tmp/twrp_repack.log 2>&1

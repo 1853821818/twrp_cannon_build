@@ -72,7 +72,13 @@ class LibIndex:
         return cands[0]
 
 
-def copy_elf(src: Path, dst: Path, index: LibIndex, copied: set[str], missing: list[str]) -> None:
+def lib_dest(root: Path, lib: Path) -> Path:
+    if "vendor" in lib.parts:
+        return root / "vendor/lib64"
+    return root / "system/lib64"
+
+
+def copy_elf(root: Path, src: Path, dst: Path, index: LibIndex, copied: set[str], missing: list[str]) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists() or dst.is_symlink():
         dst.unlink()
@@ -85,8 +91,7 @@ def copy_elf(src: Path, dst: Path, index: LibIndex, copied: set[str], missing: l
         if lib is None:
             missing.append(f"{dst.name}:{need}")
             continue
-        target = dst.parent / need
-        copy_elf(lib, target, index, copied, missing)
+        copy_elf(root, lib, lib_dest(root, lib) / need, index, copied, missing)
 
 
 def main() -> int:
@@ -96,6 +101,7 @@ def main() -> int:
     ap.add_argument("--bindir", required=True, help="directory holding system/bin binaries")
     ap.add_argument("--init", default="", help="optional explicit init binary")
     ap.add_argument("--search", action="append", default=[], help="extra library search directory")
+    ap.add_argument("--fallback-lib", action="append", default=[], help="extra fallback library directory")
     args = ap.parse_args()
 
     root = Path(args.root)
@@ -113,6 +119,7 @@ def main() -> int:
         Path("out/target/product/generic_arm64/system/lib64/bootstrap"),
     ]
     search += [Path(p) for p in args.search if p]
+    search += [Path(p) for p in args.fallback_lib if p]
     index = LibIndex(search)
 
     # 1. linker64 -----------------------------------------------------------------
@@ -179,17 +186,30 @@ def main() -> int:
 
     # 3. core binaries ------------------------------------------------------------
     copied_bins = []
+    # The product out tree may install system binaries under generic_arm64 rather
+    # than cannon. Search all product dirs instead of relying on --bindir.
+    bin_dirs = [bindir, out / "system/bin", Path("out/target/product/generic_arm64/system/bin")]
+    bin_dirs += [p / "system/bin" for p in Path("out/target/product").glob("*")]
     for name in CORE_BINS:
-        src = bindir / name
-        if src.is_symlink():
-            real = src.resolve()
-            if not real.is_file():
-                continue
-            src = real
-        if src.is_file():
-            dst = root / "system/bin" / name
-            shutil.copy2(src, dst)
+        src = None
+        for d in bin_dirs:
+            c = d / name
+            if c.is_symlink():
+                real = c.resolve()
+                if real.is_file():
+                    src = real
+                    break
+            if c.is_file():
+                src = c
+                break
+        if src is None:
+            continue
+        dst = root / "system/bin" / name
+        if dst.exists() and src.samefile(dst):
             copied_bins.append(name)
+            continue
+        shutil.copy2(src, dst)
+        copied_bins.append(name)
     print("RECOVERY_CORE_BINS " + ",".join(copied_bins))
 
     # 4. init.rc and recovery rc files -------------------------------------------
@@ -248,20 +268,31 @@ def main() -> int:
             for p in libdir.iterdir():
                 if p.is_file():
                     copied.add(p.name)
-    for dirpath, _, filenames in os.walk(root):
-        for fn in filenames:
-            p = Path(dirpath) / fn
-            if p.is_file() and not p.is_symlink() and is_elf(p):
-                for need in elf_needed(p):
-                    if need in copied:
-                        continue
-                    lib = index.find(need)
-                    if lib is None:
-                        missing.append(f"{p.relative_to(root)}:{need}")
-                        continue
-                    # vendor libs go to vendor/lib64, others to system/lib64
-                    dst_dir = root / ("vendor/lib64" if "/vendor/" in str(lib) or str(lib).startswith("vendor/") else "system/lib64")
-                    copy_elf(lib, dst_dir / need, index, copied, missing)
+    # Only resolve the closure of binaries genuinely needed by recovery/decrypt.
+    # The device-tree recovery/root also ships optional vendor HALs and THH TA
+    # blobs whose old proprietary dependencies are absent; failing on those
+    # would reject an otherwise bootable recovery.
+    seeds = [
+        root / "system/bin/init",
+        root / "system/bin/linker64",
+        root / "system/bin/recovery",
+        root / "system/bin/android.hardware.keymaster@4.1-service.beanpod",
+        root / "system/bin/android.hardware.gatekeeper@1.0-service",
+        root / "system/bin/vendor.mediatek.hardware.keymaster_attestation@1.1-service",
+        root / "vendor/bin/teei_daemon",
+    ]
+    seeds += [root / "system/bin" / name for name in copied_bins]
+    for p in seeds:
+        if not p.is_file() or p.is_symlink() or not is_elf(p):
+            continue
+        for need in elf_needed(p):
+            if need in copied:
+                continue
+            lib = index.find(need)
+            if lib is None:
+                missing.append(f"{p.relative_to(root)}:{need}")
+                continue
+            copy_elf(root, lib, lib_dest(root, lib) / need, index, copied, missing)
 
     print(f"RECOVERY_LIBS_COPIED {len(copied)}")
     if missing:
@@ -272,7 +303,11 @@ def main() -> int:
     required = [
         root / "system/bin/init",
         root / "system/bin/linker64",
+        root / "system/bin/bootstrap/linker64",
         root / "system/bin/recovery",
+        root / "system/bin/android.hardware.keymaster@4.1-service.beanpod",
+        root / "system/bin/android.hardware.gatekeeper@1.0-service",
+        root / "vendor/bin/teei_daemon",
         root / "system/lib64/libc.so",
         root / "system/lib64/libbase.so",
         root / "system/etc/init/hw/init.rc",
