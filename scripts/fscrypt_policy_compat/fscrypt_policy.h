@@ -39,6 +39,15 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+/*
+ * TeamWin libtar/append.c 仍使用旧 system/vold/fscrypt_policy.h 中的
+ * 策略类型后缀，用于拼接 "1CE" / "1DE" / "1DK" 形式的描述符。
+ * AOSP 14 已删除该头文件，这里按 Android 12.1 原值补齐。
+ */
+#define USER_CE_FSCRYPT_POLICY   "CE"
+#define USER_DE_FSCRYPT_POLICY   "DE"
+#define SYSTEM_DE_FSCRYPT_POLICY "DK"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
