@@ -51,6 +51,7 @@ if "twrp_fde_compat" not in text:
 extern "C" {
 int cryptfs_check_footer(void);
 int cryptfs_get_password_type(void);
+int cryptfs_check_passwd(const char* pw);
 void set_partition_data(const char* block_device, const char* key_location);
 int delete_crypto_blk_dev(const std::string& name);
 }
@@ -66,6 +67,7 @@ compat_cpp.write_text(r'''#include <string>
 extern "C" {
 int cryptfs_check_footer(void) { return -1; } /* 无旧 FDE footer */
 int cryptfs_get_password_type(void) { return 0; } /* 非默认密码，避免误走默认解密 */
+int cryptfs_check_passwd(const char*) { return -1; } /* FBE 设备不走旧 FDE 校验 */
 void set_partition_data(const char*, const char*) {}
 int delete_crypto_blk_dev(const std::string&) { return 0; }
 }
