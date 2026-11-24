@@ -281,6 +281,9 @@ jobs:
           # recovery 链接还引用了 authsecret/oemlock 与 libandroidicu.recovery；
           # 本精简树不构建这三者，且 recovery 源码未使用其符号，移除引用。
           python3 $GITHUB_WORKSPACE/scripts/patch_twrp_unused_recovery_libs.py
+          # recovery 是 Make 链接，Soong 静态库的传递依赖不会自动带入；
+          # 显式补齐 libvold/libsnapshot/librecovery_utils/libtwrpinstall 所需库。
+          python3 $GITHUB_WORKSPACE/scripts/patch_twrp_recovery_link_libs.py bootable/recovery/Android.mk
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
