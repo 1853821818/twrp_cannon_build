@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin every versioned sepolicy mapping target to AOSP 14's 34.0.
+"""Pin versioned sepolicy mapping targets to AOSP 14's 34.0.
 
 TeamWin's minimal twrp-14 build/make tree does not populate
 PLATFORM_SEPOLICY_VERSION or BOARD_SEPOLICY_VERS into Soong (even when
@@ -11,12 +11,13 @@ string.  versioned_policy then invokes:
 
 and version_policy fails with "Unknown arguments supplied".
 
-Replace all "current" and "vendor" version markers in the top-level
-system/sepolicy/Android.bp with the AOSP 14 platform policy version
-34.0, which is the version this recovery build targets.  microdroid
-sepolicy is not built for TWRP and is left untouched.
+Replace "current" and "vendor" version markers inside
+se_versioned_policy modules with the AOSP 14 platform policy version
+34.0.  Do NOT touch sepolicy_vers: its version property only accepts
+"platform" or "vendor" and is validated by Soong.
 """
 from pathlib import Path
+import re
 import sys
 
 p = Path("system/sepolicy/Android.bp")
@@ -25,17 +26,20 @@ if not p.exists():
     sys.exit(1)
 
 s = p.read_text()
-counts = {}
-for marker, target in (('"current"', '"34.0"'), ('"vendor"', '"34.0"')):
-    old = f'version: {marker}'
-    count = s.count(old)
-    counts[marker.strip('"')] = count
-    s = s.replace(old, f'version: {target}')
 
-if not any(counts.values()):
+current_count = s.count('version: "current"')
+s = s.replace('version: "current"', 'version: "34.0"')
+
+vendor_pattern = re.compile(
+    r'(se_versioned_policy\s*\{[^{}]*?version:\s*)"vendor"', re.S
+)
+vendor_count = len(vendor_pattern.findall(s))
+s = vendor_pattern.sub(r'\g<1>"34.0"', s)
+
+if current_count == 0 and vendor_count == 0:
     print("SEPOLICY_VERSION_ALREADY_SET")
     sys.exit(0)
 
 p.write_text(s)
 print("SEPOLICY_VERSION_FALLBACK_APPLIED "
-      f"current={counts['current']} vendor={counts['vendor']}")
+      f"current={current_count} vendor={vendor_count}")
