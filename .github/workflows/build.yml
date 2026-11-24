@@ -268,6 +268,10 @@ jobs:
           cp $GITHUB_WORKSPACE/scripts/fscrypt_policy_compat/fscrypt_policy.h bootable/recovery/fscrypt_policy.h
           cp $GITHUB_WORKSPACE/scripts/fscrypt_policy_compat/fscrypt_policy.h bootable/recovery/libtar/fscrypt_policy.h
           echo "FSCRYPT_POLICY_COMPAT_INSTALLED"
+          # TeamWin libtar 的 basename/dirname/strmode 仍是 K&R 旧式函数定义，
+          # Android 14 clang 把它当作 -Werror,-Wdeprecated-non-prototype 错误。
+          # 改成 ANSI C 原型定义，行为不变。
+          python3 $GITHUB_WORKSPACE/scripts/patch_libtar_knr.py
           . ./build/envsetup.sh
           # metadata工具依赖soong-testing proto模块(TeamWin build/soong不含)，recovery不需要它。
           # teams/Android.bp用AOSP新"team"模块类型(soong不认识)，recovery也不需要。
