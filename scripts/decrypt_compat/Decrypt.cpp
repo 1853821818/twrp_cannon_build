@@ -48,7 +48,6 @@
 #include <android/binder_manager.h>
 #include <android-base/file.h>
 #include <android-base/logging.h>
-#include <base/threading/platform_thread.h>
 #include <android/hardware/confirmationui/1.0/types.h>
 #include <aidl/android/hardware/security/keymint/HardwareAuthToken.h>
 #include <aidl/android/security/authorization/IKeystoreAuthorization.h>
