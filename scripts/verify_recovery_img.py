@@ -7,8 +7,19 @@ report a successful recoveryimage while reusing an old ramdisk-recovery.img.
 """
 import gzip
 import struct
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
+
+CLOSURE_SEEDS = [
+    "system/bin/init",
+    "system/bin/recovery",
+    "system/bin/twrp",
+    "system/bin/android.hardware.keymaster@4.1-service.beanpod",
+    "system/bin/android.hardware.gatekeeper@1.0-service",
+    "vendor/bin/teei_daemon",
+]
 
 REQUIRED = [
     "system/bin/init",
@@ -133,6 +144,60 @@ def main() -> int:
     if missing:
         print("RECOVERY_IMAGE_VERIFY_FAILED " + ",".join(missing), file=sys.stderr)
         return 1
+
+    # Verify the DT_NEEDED closure of the binaries that must load for boot and
+    # decryption.  Presence-only checks miss the case where an existing root
+    # library (e.g. libtar.so -> libkeymint_support.so) has a NEEDED entry that
+    # was never copied into the image; recovery would fail at dlopen time.
+    lib_index = {}
+    for name in entries:
+        parts = name.split("/")
+        if len(parts) == 3 and parts[0] in ("system", "vendor", "system_ext") and parts[1] == "lib64":
+            lib_index.setdefault(parts[2], name)
+
+    def elf_needed(name: str, tmp: Path) -> list[str]:
+        content = entries[name][2]
+        out = tmp / name.replace("/", "_")
+        out.write_bytes(content)
+        out.chmod(0o755)
+        try:
+            text = subprocess.check_output(["readelf", "-d", str(out)], stderr=subprocess.DEVNULL, text=True)
+        except Exception:
+            return []
+        deps = []
+        for line in text.splitlines():
+            if "(NEEDED)" in line and "[" in line:
+                deps.append(line.split("[", 1)[1].split("]", 1)[0])
+        return deps
+
+    closure_missing = []
+    seen = set()
+    with tempfile.TemporaryDirectory(prefix="twrp_verify_") as td:
+        tmp = Path(td)
+        for seed in CLOSURE_SEEDS:
+            if seed not in entries:
+                continue
+            queue = [(seed, entries[seed][2])]
+            while queue:
+                current, content = queue.pop()
+                if current in seen:
+                    continue
+                seen.add(current)
+                for dep in elf_needed(current, tmp):
+                    if dep in seen:
+                        continue
+                    dep_name = lib_index.get(dep)
+                    if dep_name is None:
+                        closure_missing.append(f"{current}:{dep}")
+                        seen.add(dep)
+                        continue
+                    queue.append((dep_name, entries[dep_name][2]))
+
+    if closure_missing:
+        print("ELF_DEP_MISSING " + ",".join(sorted(set(closure_missing))), file=sys.stderr)
+        print("RECOVERY_IMAGE_VERIFY_FAILED elf-closure", file=sys.stderr)
+        return 1
+    print(f"ELF_CLOSURE_OK seeds={len(CLOSURE_SEEDS)} unique={len(seen)}")
     print("RECOVERY_IMAGE_VERIFY_OK")
     return 0
 

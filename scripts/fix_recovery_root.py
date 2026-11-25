@@ -259,15 +259,53 @@ def main() -> int:
         except OSError:
             pass
 
-    # 5. DT_NEEDED closure over every ELF in the root -----------------------------
+    # 5. DT_NEEDED closure over the binaries needed by recovery/decrypt --------
+    # Important: an existing root library must also be traversed.  Presence in
+    # recovery/root does not mean its own NEEDED list is satisfied; e.g. libtar
+    # -> libkeymint_support -> keymint-V1-ndk_platform used to slip through.
     missing: list[str] = []
     copied: set[str] = set()
-    # seed with current root libs so we don't copy them again
     for libdir in [root / "system/lib64", root / "vendor/lib64", root / "system/lib64/hw", root / "vendor/lib64/hw"]:
         if libdir.is_dir():
             for p in libdir.iterdir():
                 if p.is_file():
                     copied.add(p.name)
+
+    def root_lib(name: str) -> Path | None:
+        for d in (root / "system/lib64", root / "vendor/lib64",
+                  root / "system/lib64/hw", root / "vendor/lib64/hw",
+                  root / "system_ext/lib64"):
+            p = d / name
+            if p.is_file() and not p.is_symlink():
+                return p
+        return None
+
+    visited: set[str] = set()
+
+    def ensure_deps(elf: Path, label: str) -> None:
+        if label in visited:
+            return
+        visited.add(label)
+        for need in elf_needed(elf):
+            if need in visited:
+                continue
+            existing = root_lib(need)
+            if existing is not None:
+                ensure_deps(existing, need)
+                continue
+            lib = index.find(need)
+            if lib is None:
+                missing.append(f"{label}:{need}")
+                visited.add(need)
+                continue
+            dst = lib_dest(root, lib) / need
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if dst.exists() or dst.is_symlink():
+                dst.unlink()
+            shutil.copy2(lib, dst)
+            copied.add(need)
+            ensure_deps(dst, need)
+
     # Only resolve the closure of binaries genuinely needed by recovery/decrypt.
     # The device-tree recovery/root also ships optional vendor HALs and THH TA
     # blobs whose old proprietary dependencies are absent; failing on those
@@ -285,14 +323,7 @@ def main() -> int:
     for p in seeds:
         if not p.is_file() or p.is_symlink() or not is_elf(p):
             continue
-        for need in elf_needed(p):
-            if need in copied:
-                continue
-            lib = index.find(need)
-            if lib is None:
-                missing.append(f"{p.relative_to(root)}:{need}")
-                continue
-            copy_elf(root, lib, lib_dest(root, lib) / need, index, copied, missing)
+        ensure_deps(p, p.name)
 
     print(f"RECOVERY_LIBS_COPIED {len(copied)}")
     if missing:

@@ -278,6 +278,11 @@ jobs:
           # android.security.*-ndk 与 android.system.keystore2-V3-ndk。
           # 不改名会导致 libtar 链接到不存在的 .so。
           python3 $GITHUB_WORKSPACE/scripts/patch_twrp_security_aidl.py
+          # libtar 并未引用 libkeymint 符号，但 TeamWin 的 Makefile 机械依赖
+          # libkeymint_support，后者又依赖本精简树未构建的
+          # android.hardware.security.keymint-V1-ndk_platform.so。
+          # 这会让 recovery 加载 libtar 时直接失败，移除该无用依赖。
+          python3 $GITHUB_WORKSPACE/scripts/patch_libtar_keymint.py bootable/recovery
           # recovery 链接还引用了 authsecret/oemlock 与 libandroidicu.recovery；
           # 本精简树不构建这三者，且 recovery 源码未使用其符号，移除引用。
           python3 $GITHUB_WORKSPACE/scripts/patch_twrp_unused_recovery_libs.py
