@@ -193,8 +193,15 @@ def main() -> int:
     copied_bins = []
     # The product out tree may install system binaries under generic_arm64 rather
     # than cannon. Search all product dirs instead of relying on --bindir.
-    bin_dirs = [bindir, out / "system/bin", Path("out/target/product/generic_arm64/system/bin")]
+    bin_dirs = [
+        bindir,
+        out / "system/bin",
+        out / "recovery/root/system/bin",
+        Path("out/target/product/generic_arm64/system/bin"),
+        Path("out/target/product/generic_arm64/recovery/root/system/bin"),
+    ]
     bin_dirs += [p / "system/bin" for p in Path("out/target/product").glob("*")]
+    bin_dirs += [p / "recovery/root/system/bin" for p in Path("out/target/product").glob("*")]
     for name in CORE_BINS:
         src = None
         for d in bin_dirs:
@@ -216,6 +223,27 @@ def main() -> int:
         shutil.copy2(src, dst)
         copied_bins.append(name)
     print("RECOVERY_CORE_BINS " + ",".join(copied_bins))
+
+    # Toybox is a multicall binary; its applet symlinks are installed alongside
+    # it in the recovery root.  Copy those links so TWRP's Exec_Cmd()/shell
+    # commands can find rm/mv/mount/dmesg/etc instead of only a bare toybox.
+    toybox_links = 0
+    for d in bin_dirs:
+        if not d.is_dir():
+            continue
+        for src in d.iterdir():
+            if not src.is_symlink():
+                continue
+            target = os.readlink(src)
+            if Path(target).name != "toybox":
+                continue
+            dst = root / "system/bin" / src.name
+            if dst.exists() or dst.is_symlink():
+                continue
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.symlink_to(target)
+            toybox_links += 1
+    print(f"RECOVERY_TOYBOX_LINKS {toybox_links}")
 
     # 4. init.rc and recovery rc files -------------------------------------------
     init_rc = Path("bootable/recovery/etc/init.rc")

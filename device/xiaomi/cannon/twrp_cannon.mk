@@ -64,7 +64,9 @@ PRODUCT_PACKAGES += \
     charger \
     ueventd \
     watchdogd \
-    minadbd
+    minadbd \
+    sh \
+    toybox
 
 PRODUCT_BUILD_PROP_OVERRIDES += \
     PRIVATE_BUILD_DESC="cannon-user 12 SP1A.210812.016 V14.0.6.0.SJECNXM release-keys"
