@@ -1215,6 +1215,18 @@ jobs:
           echo "SHELL_BUILD_RC=$SHELL_BUILD_RC"
           tail -60 /tmp/shell_build.log
           find out/target/product -path '*/system/bin/sh' -o -path '*/system/bin/toybox' 2>/dev/null | head -20
+          echo "=== 预编译 recovery adbd/logd（补齐 adb/MTP 与日志） ==="
+          set +e
+          for extra_mod in adbd logd; do
+            build/soong/soong_ui.bash --make-mode "$extra_mod" -j$(nproc) \
+                KEEP_VNDK=false BOARD_VNDK_VERSION= BUILD_BROKEN_DISABLE_BAZEL=true \
+                > "/tmp/extra_${extra_mod}_build.log" 2>&1
+            EXTRA_RC=$?
+            echo "EXTRA_BIN_BUILD_${extra_mod}_RC=$EXTRA_RC"
+            tail -20 "/tmp/extra_${extra_mod}_build.log"
+          done
+          set -e
+          find out/target/product \( -path '*/system/bin/adbd' -o -path '*/system/bin/logd' \) 2>/dev/null | head -20
           echo "=== out/soong after build ==="; ls -la out/soong/ 2>&1 | head -40
           echo "=== recovery.img 输出路径检查 ==="
           find out/ -name "recovery.img" -exec ls -lh {} \; 2>&1 | head

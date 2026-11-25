@@ -27,7 +27,7 @@ NEEDED_RE = re.compile(r"\(NEEDED\)\s+Shared library: \[([^\]]+)\]")
 SKIP_LIBS = {"libc.so", "libm.so", "libdl.so", "libstdc++.so", "libc++.so", "libc++abi.so"}
 
 CORE_BINS = [
-    "init", "ueventd", "adbd", "charger", "sh", "toybox", "toolbox",
+    "init", "ueventd", "adbd", "logd", "charger", "sh", "toybox", "toolbox",
     "mke2fs", "e2fsck", "fsck.f2fs", "make_f2fs", "sload_f2fs",
     "simg2img", "recovery", "twrp", "resetprop",
     "android.hardware.keymaster@4.1-service.beanpod",
