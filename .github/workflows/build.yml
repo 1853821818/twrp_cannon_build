@@ -1208,13 +1208,23 @@ jobs:
           echo "=== 补齐 recovery root(init/linker/共享库/init.rc) ==="
           python3 $GITHUB_WORKSPACE/scripts/fix_recovery_root.py               --root out/target/product/cannon/recovery/root               --out out/target/product/cannon               --bindir out/target/product/cannon/system/bin               --fallback-lib $GITHUB_WORKSPACE/scripts/recovery_root_compat/a12_libs
           echo "=== 重新打包 recovery.img ==="
-          rm -f out/target/product/cannon/recovery.img
+          # 关键：只删除压缩后的 ramdisk-recovery.img，不删除 ramdisk_files-timestamp。
+          # 这样 Make 会用“当前已经补齐过的 recovery/root”重新执行 mkbootfs，
+          # 而不会重跑 rsync 把未补齐的 baseline root 覆盖回来。
+          rm -f out/target/product/cannon/recovery.img               out/target/product/cannon/ramdisk-recovery.img
           build/soong/soong_ui.bash --make-mode recoveryimage -j$(nproc)               KEEP_VNDK=false BOARD_VNDK_VERSION= BUILD_BROKEN_DISABLE_BAZEL=true               > /tmp/twrp_repack.log 2>&1
-          tail -60 /tmp/twrp_repack.log
+          REPACK_RC=$?
+          tail -80 /tmp/twrp_repack.log
+          if [ $REPACK_RC -ne 0 ]; then
+            echo "REPACK_FAILED rc=$REPACK_RC"
+            exit $REPACK_RC
+          fi
           test -f out/target/product/cannon/recovery.img
           ls -lh out/target/product/cannon/recovery.img
+          echo "=== 校验最终 recovery.img 内的 ramdisk ==="
+          python3 "$GITHUB_WORKSPACE/scripts/verify_recovery_img.py"               out/target/product/cannon/recovery.img
           echo "=== 最终 recovery root 关键文件 ==="
-          for f in system/bin/init system/bin/linker64 system/bin/bootstrap/linker64 system/bin/recovery system/lib64/libc.so system/lib64/libbase.so system/etc/init/hw/init.rc system/bin/adbd; do
+          for f in system/bin/init system/bin/linker64 system/bin/bootstrap/linker64 system/bin/recovery system/lib64/libc.so system/lib64/libbase.so system/etc/init/hw/init.rc; do
             ls -lh "out/target/product/cannon/recovery/root/$f" 2>&1 || true
           done
 
