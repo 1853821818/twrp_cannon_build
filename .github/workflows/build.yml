@@ -1205,6 +1205,16 @@ jobs:
             fi
           fi
           set -e
+          echo "=== 预编译 recovery shell/toybox（A14 优先，失败则用仓库内 A12 兜底） ==="
+          set +e
+          build/soong/soong_ui.bash --make-mode sh toybox -j$(nproc) \
+              KEEP_VNDK=false BOARD_VNDK_VERSION= BUILD_BROKEN_DISABLE_BAZEL=true \
+              > /tmp/shell_build.log 2>&1
+          SHELL_BUILD_RC=$?
+          set -e
+          echo "SHELL_BUILD_RC=$SHELL_BUILD_RC"
+          tail -60 /tmp/shell_build.log
+          find out/target/product -path '*/system/bin/sh' -o -path '*/system/bin/toybox' 2>/dev/null | head -20
           echo "=== out/soong after build ==="; ls -la out/soong/ 2>&1 | head -40
           echo "=== recovery.img 输出路径检查 ==="
           find out/ -name "recovery.img" -exec ls -lh {} \; 2>&1 | head

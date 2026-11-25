@@ -202,6 +202,12 @@ def main() -> int:
     ]
     bin_dirs += [p / "system/bin" for p in Path("out/target/product").glob("*")]
     bin_dirs += [p / "recovery/root/system/bin" for p in Path("out/target/product").glob("*")]
+    # Last-resort A12 shell binaries for the recovery shell/toybox gap.  The
+    # A14 build target does not install these into recovery/root, so keep a
+    # compatible reference copy in the repo; A14 product outputs still win.
+    fallback_bins = Path("scripts/recovery_root_compat/a12_bins")
+    if fallback_bins.is_dir():
+        bin_dirs.append(fallback_bins)
     for name in CORE_BINS:
         src = None
         for d in bin_dirs:
@@ -222,6 +228,8 @@ def main() -> int:
             continue
         shutil.copy2(src, dst)
         copied_bins.append(name)
+        if src.parent == fallback_bins:
+            print(f"RECOVERY_FALLBACK_BIN {name} <- {src}")
     print("RECOVERY_CORE_BINS " + ",".join(copied_bins))
 
     # Toybox is a multicall binary; its applet symlinks are installed alongside
