@@ -18,6 +18,8 @@ CLOSURE_SEEDS = [
     "system/bin/twrp",
     "system/bin/android.hardware.keymaster@4.1-service.beanpod",
     "system/bin/android.hardware.gatekeeper@1.0-service",
+    "system/bin/hwservicemanager",
+    "system/bin/servicemanager",
     "vendor/bin/teei_daemon",
 ]
 
@@ -30,8 +32,13 @@ REQUIRED = [
     "system/lib64/libc.so",
     "system/lib64/libbase.so",
     "system/etc/init/hw/init.rc",
+    "system/etc/init/hwservicemanager.rc",
+    "system/etc/init/servicemanager.rc",
+    "init.recovery.service.rc",
     "system/bin/android.hardware.keymaster@4.1-service.beanpod",
     "system/bin/android.hardware.gatekeeper@1.0-service",
+    "system/bin/hwservicemanager",
+    "system/bin/servicemanager",
     "vendor/bin/teei_daemon",
 ]
 
@@ -140,6 +147,21 @@ def main() -> int:
                 rc_ok = False
         if rc_ok:
             print("KEYMASTER_RC_OK keymaster-4-1-beanpod,gatekeeper-1-0")
+
+    svc_rc = entries.get("init.recovery.service.rc")
+    if not svc_rc:
+        print("MISSING init.recovery.service.rc")
+        missing.append("init.recovery.service.rc")
+    else:
+        text = svc_rc[2].decode("utf-8", "replace")
+        svc_ok = True
+        for token in ("hwservicemanager.rc", "servicemanager.rc"):
+            if token not in text:
+                print(f"SERVICE_MANAGER_RC_MISSING {token}")
+                missing.append(f"service-manager-rc:{token}")
+                svc_ok = False
+        if svc_ok:
+            print("SERVICE_MANAGER_RC_OK hwservicemanager,servicemanager")
 
     if missing:
         print("RECOVERY_IMAGE_VERIFY_FAILED " + ",".join(missing), file=sys.stderr)

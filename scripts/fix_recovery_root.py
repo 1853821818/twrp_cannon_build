@@ -32,6 +32,11 @@ CORE_BINS = [
     "simg2img", "recovery", "twrp", "resetprop",
     "android.hardware.keymaster@4.1-service.beanpod",
     "android.hardware.gatekeeper@1.0-service",
+    # Keymaster/gatekeeper register through hwservicemanager; libbinder needs
+    # servicemanager.  They were installed by PRODUCT_PACKAGES but were not
+    # copied into recovery/root by TeamWin's relink packages.
+    "hwservicemanager",
+    "servicemanager",
 ]
 
 
@@ -235,6 +240,21 @@ def main() -> int:
             shutil.copy2(src, dst)
             print(f"RECOVERY_RC {src.name} -> {dst.name}")
 
+    # hwservicemanager/servicemanager are started by their AOSP rc files, but
+    # TeamWin's init.rc only imports init.recovery.service.rc.  Import the two
+    # service-manager definitions so HIDL keymaster/gatekeeper can register.
+    service_rc = root / "init.recovery.service.rc"
+    if service_rc.is_file():
+        text = service_rc.read_text()
+        if "hwservicemanager.rc" not in text:
+            text += (
+                "\n# HIDL/binder service managers required by keymaster and gatekeeper\n"
+                "import /system/etc/init/hwservicemanager.rc\n"
+                "import /system/etc/init/servicemanager.rc\n"
+            )
+            service_rc.write_text(text)
+            print("RECOVERY_SERVICE_MANAGER_RC_ADDED hwservicemanager,servicemanager")
+
     # ueventd.rc
     ueventd_rc = Path("system/core/rootdir/ueventd.rc")
     if ueventd_rc.is_file():
@@ -338,6 +358,8 @@ def main() -> int:
         root / "system/bin/recovery",
         root / "system/bin/android.hardware.keymaster@4.1-service.beanpod",
         root / "system/bin/android.hardware.gatekeeper@1.0-service",
+        root / "system/bin/hwservicemanager",
+        root / "system/bin/servicemanager",
         root / "vendor/bin/teei_daemon",
         root / "system/lib64/libc.so",
         root / "system/lib64/libbase.so",
