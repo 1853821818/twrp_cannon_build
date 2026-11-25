@@ -163,6 +163,62 @@ def main() -> int:
         if svc_ok:
             print("SERVICE_MANAGER_RC_OK hwservicemanager,servicemanager")
 
+    # init.rc must import the cannon rc unconditionally; ro.hardware may be
+    # absent on this device.  It must also inherit /vendor/lib64 because
+    # recovery and libtar.so have DT_NEEDED vendor keymaster libraries.
+    initrc = entries.get("system/etc/init/hw/init.rc")
+    if initrc:
+        text = initrc[2].decode("utf-8", "replace")
+        if "import /init.recovery.mt6853.rc" not in text:
+            print("DEVICE_RC_IMPORT_MISSING mt6853")
+            missing.append("init.rc:mt6853-import")
+        else:
+            print("DEVICE_RC_IMPORT_OK mt6853")
+        ld_line = ""
+        for line in text.splitlines():
+            if "LD_LIBRARY_PATH" in line:
+                ld_line = line
+                break
+        ld_paths = []
+        for token in ld_line.split():
+            if ":" in token or token.startswith("/"):
+                ld_paths.extend(token.split(":"))
+        if "/vendor/lib64" not in ld_paths:
+            print("LD_LIBRARY_PATH_VENDOR_MISSING")
+            missing.append("init.rc:vendor-lib64")
+        else:
+            print("LD_LIBRARY_PATH_VENDOR_OK")
+
+    # Service managers must start after init has created binderfs.
+    for name, service in (("hwservicemanager.rc", "hwservicemanager"),
+                          ("servicemanager.rc", "servicemanager")):
+        rc_entry = entries.get("system/etc/init/" + name)
+        if not rc_entry:
+            continue
+        text = rc_entry[2].decode("utf-8", "replace")
+        expected = f"on boot\n    start {service}"
+        if expected not in text:
+            print(f"SERVICE_MANAGER_BOOT_START_MISSING {service}")
+            missing.append(f"service-manager-boot:{service}")
+        else:
+            print(f"SERVICE_MANAGER_BOOT_START_OK {service}")
+
+    # System executables also need copies of the vendor keymaster libs in
+    # system/lib64; keep the vendor originals for vendor HALs.
+    for name in (
+        "system/lib64/android.hardware.keymaster@4.1.so",
+        "system/lib64/libkeymaster41.so",
+        "system/lib64/libkeymaster4support.so",
+        "system/lib64/libkeymaster4_1support.so",
+        "system/lib64/libTEECommon.so",
+        "system/lib64/hw/gatekeeper.beanpod.so",
+    ):
+        if name not in entries:
+            print(f"SYSTEM_VENDOR_LIB_MISSING {name}")
+            missing.append(name)
+        else:
+            print(f"SYSTEM_VENDOR_LIB_OK {name}")
+
     if missing:
         print("RECOVERY_IMAGE_VERIFY_FAILED " + ",".join(missing), file=sys.stderr)
         return 1

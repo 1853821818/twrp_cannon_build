@@ -224,6 +224,26 @@ def main() -> int:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(init_rc, dst)
         print(f"RECOVERY_INIT_RC {init_rc} -> {dst}")
+        # ro.hardware is not guaranteed to be present in prop.default/cmdline.
+        # Hard-code the cannon device rc so keymaster/gatekeeper are always imported.
+        text = dst.read_text()
+        if "import /init.recovery.${ro.hardware}.rc" in text:
+            text = text.replace(
+                "import /init.recovery.${ro.hardware}.rc",
+                "import /init.recovery.mt6853.rc",
+            )
+            dst.write_text(text)
+            print("RECOVERY_DEVICE_RC_HARDCODED mt6853")
+        # recovery and libtar.so need vendor keymaster libs; make sure the
+        # inherited LD path includes /vendor/lib64, not just /vendor/lib64/hw.
+        text = dst.read_text()
+        if "export LD_LIBRARY_PATH /system/lib64:/vendor/lib64/hw" in text:
+            text = text.replace(
+                "export LD_LIBRARY_PATH /system/lib64:/vendor/lib64/hw",
+                "export LD_LIBRARY_PATH /system/lib64:/vendor/lib64:/vendor/lib64/hw",
+            )
+            dst.write_text(text)
+            print("RECOVERY_LD_LIBRARY_PATH_VENDOR_ADDED")
     else:
         print("RECOVERY_INIT_RC_SOURCE_MISSING", file=sys.stderr)
         return 1
@@ -254,6 +274,21 @@ def main() -> int:
             )
             service_rc.write_text(text)
             print("RECOVERY_SERVICE_MANAGER_RC_ADDED hwservicemanager,servicemanager")
+
+    # Their AOSP rc files start the services from "on init", which runs before
+    # init.rc has mounted /dev/binderfs.  Move the start to "on boot" so
+    # servicemanager/hwservicemanager can open /dev/binder and /dev/hwbinder.
+    for name in ("hwservicemanager.rc", "servicemanager.rc"):
+        p = root / "system/etc/init" / name
+        if not p.is_file():
+            continue
+        text = p.read_text()
+        service = name[:-3]
+        old = f"on init\n    start {service}"
+        new = f"on boot\n    start {service}"
+        if old in text:
+            p.write_text(text.replace(old, new))
+            print(f"RECOVERY_SERVICE_MANAGER_BOOT_START {service}")
 
     # ueventd.rc
     ueventd_rc = Path("system/core/rootdir/ueventd.rc")
@@ -346,6 +381,30 @@ def main() -> int:
         ensure_deps(p, p.name)
 
     print(f"RECOVERY_LIBS_COPIED {len(copied)}")
+
+    # recovery, libtar.so and the keymaster service are system executables but
+    # have DT_NEEDED entries on vendor keymaster libraries.  Keep the vendor
+    # copies for vendor HALs, and also place copies under system/lib64 so the
+    # default linker namespace can resolve them even if LD_LIBRARY_PATH is
+    # restricted.
+    duplicated = 0
+    for src_dir, dst_dir in (
+        (root / "vendor/lib64", root / "system/lib64"),
+        (root / "vendor/lib64/hw", root / "system/lib64/hw"),
+    ):
+        if not src_dir.is_dir():
+            continue
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        for src in src_dir.glob("*.so"):
+            if not src.is_file() or src.is_symlink():
+                continue
+            dst = dst_dir / src.name
+            if dst.exists() or dst.is_symlink():
+                continue
+            shutil.copy2(src, dst)
+            duplicated += 1
+    print(f"RECOVERY_VENDOR_LIBS_DUPLICATED {duplicated}")
+
     if missing:
         print("RECOVERY_LIBS_MISSING " + ",".join(sorted(set(missing))))
         return 1
